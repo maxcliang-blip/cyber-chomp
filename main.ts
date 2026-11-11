@@ -64,6 +64,35 @@ function cleanUIElements (arr: Sprite[]) {
         }
     }
 }
+function isBossCell (row: number, col: number) {
+    return row >= BOSS_ROW && row < BOSS_ROW + BOSS_SIZE && col >= BOSS_COL && col < BOSS_COL + BOSS_SIZE
+}
+function drawBossBackground (row: number, col: number) {
+    if (!bossBackground) {
+        bossBackground = image.create(SCREEN_WIDTH, SCREEN_HEIGHT)
+    }
+    bossBackground.fill(1)
+    const r = row - BOSS_ROW
+    const c = col - BOSS_COL
+    if (r == 0) {
+        bossBackground.fillRect(0, 0, SCREEN_WIDTH, 3, 2)
+    }
+    if (r == BOSS_SIZE - 1) {
+        bossBackground.fillRect(0, SCREEN_HEIGHT - 3, SCREEN_WIDTH, 3, 2)
+    }
+    if (c == 0) {
+        if (r == BOSS_ENTRANCE_ROW - BOSS_ROW) {
+            bossBackground.fillRect(0, 0, 3, 52, 2)
+            bossBackground.fillRect(0, 68, 3, SCREEN_HEIGHT - 68, 2)
+            drawDoor(bossBackground, 3, 2)
+        } else {
+            bossBackground.fillRect(0, 0, 3, SCREEN_HEIGHT, 2)
+        }
+    }
+    if (c == BOSS_SIZE - 1) {
+        bossBackground.fillRect(SCREEN_WIDTH - 3, 0, 3, SCREEN_HEIGHT, 2)
+    }
+}
 function loadRoom (row: number, col: number) {
     console1hidden = true
     console1.setFlag(SpriteFlag.Invisible, true)
@@ -89,7 +118,12 @@ function loadRoom (row: number, col: number) {
         console1.setFlag(SpriteFlag.Invisible, false)
         console1.setPosition(100, 30)
     }
-    scene.setBackgroundImage(roomTemplates[roomBitValue])
+    if (isBossCell(row, col)) {
+        drawBossBackground(row, col)
+        scene.setBackgroundImage(bossBackground)
+    } else {
+        scene.setBackgroundImage(roomTemplates[roomBitValue])
+    }
 }
 function clearMinigameSprites () {
     sprites.destroyAllSpritesOfKind(SpriteKind.minigameSprites)
@@ -115,19 +149,19 @@ function startFirewall () {
         }
     })
 }
-function drawDoor (bg: Image, side: number) {
+function drawDoor (bg: Image, side: number, color: number = 15) {
     for (let i = 0; i <= 20; i++) {
         if (side == 0) {
-            bg.drawLine(Math.map(i, 0, 20, 72, 60), i, Math.map(i, 0, 20, 88, 100), i, 15)
+            bg.drawLine(Math.map(i, 0, 20, 72, 60), i, Math.map(i, 0, 20, 88, 100), i, color)
         }
         if (side == 1) {
-            bg.drawLine(159 - i, Math.map(i, 0, 20, 52, 40), 159 - i, Math.map(i, 0, 20, 68, 80), 15)
+            bg.drawLine(159 - i, Math.map(i, 0, 20, 52, 40), 159 - i, Math.map(i, 0, 20, 68, 80), color)
         }
         if (side == 2) {
-            bg.drawLine(Math.map(i, 0, 20, 72, 60), 119 - i, Math.map(i, 0, 20, 88, 100), 119 - i, 15)
+            bg.drawLine(Math.map(i, 0, 20, 72, 60), 119 - i, Math.map(i, 0, 20, 88, 100), 119 - i, color)
         }
         if (side == 3) {
-            bg.drawLine(i, Math.map(i, 0, 20, 52, 40), i, Math.map(i, 0, 20, 68, 80), 15)
+            bg.drawLine(i, Math.map(i, 0, 20, 52, 40), i, Math.map(i, 0, 20, 68, 80), color)
         }
     }
     return bg
@@ -139,7 +173,7 @@ function drawDungeonMap (canvas: Image, offsetX: number, offsetY: number, cellSi
             if (bits > 0) {
                 x = offsetX + d * (cellSize + gap)
                 y = offsetY + s * (cellSize + gap)
-                canvas.fillRect(x, y, cellSize, cellSize, (s == currentRoomRow && d == currentRoomCol) ? 4 : 1)
+                canvas.fillRect(x, y, cellSize, cellSize, (s == currentRoomRow && d == currentRoomCol) ? 4 : (isBossCell(s, d) ? 2 : 1))
                 if ((bits & 1) == 0) {
                     canvas.drawLine(x, y, x + cellSize - 1, y, 15)
                 }
@@ -213,67 +247,6 @@ function distance (x1: number, x2: number, y1: number, y2: number) {
 controller.down.onEvent(ControllerButtonEvent.Pressed, function () {
     handleNavigation(1)
 })
-function generateDungeonGrid (rows: number, cols: number) {
-    let stack: number[][] = []
-    let visited: boolean[][] = []
-    for (let r = 0; r <= rows - 1; r++) {
-        dungeonGrid.push([])
-        visited.push([])
-        for (let index = 0; index < cols; index++) {
-            dungeonGrid[r].push(0)
-            visited[r].push(false)
-        }
-    }
-    visited[0][0] = true
-    stack.push([0, 0])
-    while (stack.length > 0) {
-        let neighbors: number[][] = []
-        curr = stack[stack.length - 1]
-        cr = curr[0]
-        cc = curr[1]
-        if (cr > 0 && !(visited[cr - 1][cc])) {
-            neighbors.push([
-            cr - 1,
-            cc,
-            1,
-            4
-            ])
-        }
-        if (cc < cols - 1 && !(visited[cr][cc + 1])) {
-            neighbors.push([
-            cr,
-            cc + 1,
-            2,
-            8
-            ])
-        }
-        if (cr < rows - 1 && !(visited[cr + 1][cc])) {
-            neighbors.push([
-            cr + 1,
-            cc,
-            4,
-            1
-            ])
-        }
-        if (cc > 0 && !(visited[cr][cc - 1])) {
-            neighbors.push([
-            cr,
-            cc - 1,
-            8,
-            2
-            ])
-        }
-        if (neighbors.length > 0) {
-            choice = neighbors[Math.randomRange(0, neighbors.length - 1)]
-            dungeonGrid[cr][cc] |= choice[2];
-dungeonGrid[choice[0]][choice[1]] |= choice[3]
-visited[choice[0]][choice[1]] = true
-            stack.push([choice[0], choice[1]])
-        } else {
-            stack.pop()
-        }
-    }
-}
 browserEvents.Enter.onEvent(browserEvents.KeyEvent.Pressed, function () {
     if (!(debugActivated)) {
         return
@@ -372,7 +345,6 @@ let hittingWall = false
 let debugPlayerY = 0
 let debugPlayerX = 0
 let debugActivated = false
-let curr: number[] = []
 let mm: Image = null
 let size = 0
 let cv: Image = null
@@ -383,6 +355,7 @@ let minigameActive = ""
 let opt: fancyText.TextSprite = null
 let debugOptions: fancyText.TextSprite[] = []
 let bg: Image = null
+let bossBackground: Image = null
 let minimapSprite: Sprite = null
 let roomTemplates: Image[] = []
 let pauseButton: Sprite = null
@@ -394,16 +367,31 @@ let SCREEN_HEIGHT = 0
 let SCREEN_WIDTH = 0
 let GRID_SIZE = 0
 let popup1: fancyText.TextSprite = null
-let choice: number[] = []
-let cc = 0
-let cr = 0
 let bits = 0
 let labels: string[] = []
 let debugHint: fancyText.TextSprite = null
 let debugTitle: fancyText.TextSprite = null
 let mapExitPrompt: fancyText.TextSprite = null
 let coordsText: fancyText.TextSprite = null
-let dungeonGrid: number[][] = []
+// Fixed 10x10 dungeon layout. Each number is a bitmask of open doors:
+// 1 = north, 2 = east, 4 = south, 8 = west.
+// The 3x3 boss arena is at rows 7-9, cols 7-9, entered from the west.
+const BOSS_ROW = 7
+const BOSS_COL = 7
+const BOSS_SIZE = 3
+const BOSS_ENTRANCE_ROW = BOSS_ROW + 1
+const dungeonGrid: number[][] = [
+    [2, 14, 10, 14, 14, 12, 2, 14, 12, 4],
+    [6, 11, 12, 5, 5, 3, 10, 9, 3, 13],
+    [7, 8, 5, 1, 5, 4, 6, 14, 8, 5],
+    [7, 12, 3, 10, 9, 7, 9, 3, 10, 9],
+    [5, 7, 10, 12, 4, 7, 12, 6, 14, 8],
+    [1, 5, 4, 5, 7, 9, 5, 5, 3, 12],
+    [6, 9, 5, 5, 3, 12, 7, 9, 2, 9],
+    [5, 2, 11, 11, 10, 13, 5, 6, 14, 12],
+    [7, 10, 12, 6, 12, 3, 15, 15, 15, 13],
+    [3, 8, 3, 9, 3, 10, 9, 3, 11, 9],
+]
 let debugSelection = 0
 let roomBitValue = 0
 let currentRoomCol = 0
@@ -470,7 +458,6 @@ pauseButton = sprites.create(img`
 pauseButton.setPosition(155, 10)
 // A is "/" for the laser. B is unbound until a B action exists.
 keymap.setPlayerKeys(1, keymap.KeyCode.UpArrow, keymap.KeyCode.DownArrow, keymap.KeyCode.LeftArrow, keymap.KeyCode.RightArrow, keymap.KeyCode.ForwardSlash, keymap.KeyCode.None)
-generateDungeonGrid(GRID_SIZE, GRID_SIZE)
 roomTemplates = pregenerateRoomTemplates()
 minimapSprite = sprites.create(createMinimapImage(), SpriteKind.Hud)
 minimapSprite.setPosition(25, 95)
@@ -516,8 +503,14 @@ game.onUpdate(function () {
         cyberPacman.x = lastX
         cyberPacman.y = lastY
     }
+    const inDoorY = cyberPacman.y >= 52 && cyberPacman.y <= 68
+    const inDoorX = cyberPacman.x >= 72 && cyberPacman.x <= 88
+    const bossEdgeLeft = isBossCell(currentRoomRow, currentRoomCol) && isBossCell(currentRoomRow, currentRoomCol - 1)
+    const bossEdgeRight = isBossCell(currentRoomRow, currentRoomCol) && isBossCell(currentRoomRow, currentRoomCol + 1)
+    const bossEdgeUp = isBossCell(currentRoomRow, currentRoomCol) && isBossCell(currentRoomRow - 1, currentRoomCol)
+    const bossEdgeDown = isBossCell(currentRoomRow, currentRoomCol) && isBossCell(currentRoomRow + 1, currentRoomCol)
     if (cyberPacman.x < 0) {
-        if (cyberPacman.y >= 52 && cyberPacman.y <= 68 && (roomBitValue & 8) != 0 && currentRoomCol > 0) {
+        if ((bossEdgeLeft || inDoorY) && (roomBitValue & 8) != 0 && currentRoomCol > 0) {
             currentRoomCol += 0 - 1
             loadRoom(currentRoomRow, currentRoomCol)
             cyberPacman.x = 155
@@ -525,7 +518,7 @@ game.onUpdate(function () {
             cyberPacman.x = 0
         }
     } else if (cyberPacman.x > SCREEN_WIDTH) {
-        if (cyberPacman.y >= 52 && cyberPacman.y <= 68 && (roomBitValue & 2) != 0 && currentRoomCol < GRID_SIZE - 1) {
+        if ((bossEdgeRight || inDoorY) && (roomBitValue & 2) != 0 && currentRoomCol < GRID_SIZE - 1) {
             currentRoomCol += 1
             loadRoom(currentRoomRow, currentRoomCol)
             cyberPacman.x = 5
@@ -533,7 +526,7 @@ game.onUpdate(function () {
             cyberPacman.x = SCREEN_WIDTH
         }
     } else if (cyberPacman.y < 0) {
-        if (cyberPacman.x >= 72 && cyberPacman.x <= 88 && (roomBitValue & 1) != 0 && currentRoomRow > 0) {
+        if ((bossEdgeUp || inDoorX) && (roomBitValue & 1) != 0 && currentRoomRow > 0) {
             currentRoomRow += 0 - 1
             loadRoom(currentRoomRow, currentRoomCol)
             cyberPacman.y = 115
@@ -541,7 +534,7 @@ game.onUpdate(function () {
             cyberPacman.y = 0
         }
     } else if (cyberPacman.y > SCREEN_HEIGHT) {
-        if (cyberPacman.x >= 72 && cyberPacman.x <= 88 && (roomBitValue & 4) != 0 && currentRoomRow < GRID_SIZE - 1) {
+        if ((bossEdgeDown || inDoorX) && (roomBitValue & 4) != 0 && currentRoomRow < GRID_SIZE - 1) {
             currentRoomRow += 1
             loadRoom(currentRoomRow, currentRoomCol)
             cyberPacman.y = 5
