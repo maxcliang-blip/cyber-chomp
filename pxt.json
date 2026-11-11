@@ -7,7 +7,6 @@
         "arcade-fancy-text": "github:riknoll/arcade-fancy-text#v0.2.2"
     },
     "files": [
-        "main.blocks",
         "main.ts",
         "README.md",
         "assets.json",
@@ -24,5 +23,5 @@
     "supportedTargets": [
         "arcade"
     ],
-    "preferredEditor": "blocksprj"
+    "preferredEditor": "tsprj"
 }

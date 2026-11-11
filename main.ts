@@ -18,17 +18,22 @@ function renderDebugOptions () {
     }
 }
 function clearMinigameHud () {
-    sprites.destroyAllSpritesOfKind(SpriteKind.minigameSprites)
+    sprites.destroyAllSpritesOfKind(SpriteKind.minigameHud)
 }
 function startMinigame (kind: string) {
+    if (debugActivated || minigameActive != "") {
+        return
+    }
     minigameActive = kind
     minigameReturnX = cyberPacman.x
     minigameReturnY = cyberPacman.y
     minimapSprite.setFlag(SpriteFlag.Invisible, true)
     pauseButton.setFlag(SpriteFlag.Invisible, true)
-    sprites.destroy(coordsText)
-    coordsText = null
-clearMinigameSprites()
+    if (coordsText) {
+        sprites.destroy(coordsText)
+        coordsText = null
+    }
+    clearMinigameSprites()
     clearMinigameHud()
     if (kind == "firewall") {
         startFirewall()
@@ -53,7 +58,10 @@ function pregenerateRoomTemplates () {
 }
 function cleanUIElements (arr: Sprite[]) {
     while (arr.length) {
-        sprites.destroy(arr.pop())
+        const item = arr.pop()
+        if (item) {
+            sprites.destroy(item)
+        }
     }
 }
 function loadRoom (row: number, col: number) {
@@ -87,13 +95,25 @@ function clearMinigameSprites () {
     sprites.destroyAllSpritesOfKind(SpriteKind.minigameSprites)
 }
 function startFirewall () {
-    console.log("started")
+    // Placeholder until the Firewall Breach minigame is implemented.
+    // Without this, starting the minigame hides the player forever (soft-lock).
     scene.setBackgroundImage(bg)
     cyberPacman.setFlag(SpriteFlag.Invisible, true)
     console1.setFlag(SpriteFlag.Invisible, true)
     popup1.setFlag(SpriteFlag.Invisible, true)
     console1hidden = true
     popup1hidden = true
+    const placeholder = fancyText.create("Firewall Breach\ncoming soon...")
+    placeholder.setKind(SpriteKind.minigameHud)
+    fancyText.setColor(placeholder, 15)
+    fancyText.setFont(placeholder, fancyText.bold_sans_7)
+    placeholder.setPosition(80, 60)
+    control.runInBackground(function () {
+        pause(1200)
+        if (minigameActive == "firewall") {
+            endMinigame(false)
+        }
+    })
 }
 function drawDoor (bg: Image, side: number) {
     for (let i = 0; i <= 20; i++) {
@@ -145,6 +165,7 @@ function endMinigame (won: boolean) {
     }
     minimapSprite.setFlag(SpriteFlag.Invisible, false)
     pauseButton.setFlag(SpriteFlag.Invisible, false)
+    cyberPacman.setFlag(SpriteFlag.Invisible, false)
     loadRoom(currentRoomRow, currentRoomCol)
     cyberPacman.setPosition(minigameReturnX, minigameReturnY)
 }
@@ -176,7 +197,10 @@ function createMinimapImage () {
     return mm
 }
 browserEvents.A.onEvent(browserEvents.KeyEvent.Pressed, function () {
-    if (!(popup1hidden)) {
+    if (debugActivated || minigameActive != "") {
+        return
+    }
+    if (!console1hidden && !(popup1hidden)) {
         startMinigame("firewall")
     }
 })
@@ -270,7 +294,7 @@ function handleNavigation (dir: number) {
     }
 }
 browserEvents.MouseLeft.onEvent(browserEvents.MouseButtonEvent.Pressed, function (x, y) {
-    if (!(debugActivated) && x < 160 && x > 145 && y < 20 && y > 0) {
+    if (!(debugActivated) && minigameActive == "" && x < 160 && x > 145 && y < 20 && y > 0) {
         debugActivated = true
         renderDebugMenu()
     }
@@ -422,7 +446,7 @@ console1 = sprites.create(img`
     7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 
     7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 
     7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 
-    `, SpriteKind.Player)
+    `, SpriteKind.Hud)
 console1.setFlag(SpriteFlag.Invisible, true)
 console1hidden = true
 pauseButton = sprites.create(img`
@@ -442,14 +466,16 @@ pauseButton = sprites.create(img`
     . . . . . . . . . . . . . . . . 
     . . . . . . . . . . . . . . . . 
     . . . . . . . . . . . . . . . . 
-    `, SpriteKind.Player)
+    `, SpriteKind.Hud)
 pauseButton.setPosition(155, 10)
-keymap.setPlayerKeys(1, keymap.KeyCode.UpArrow, keymap.KeyCode.DownArrow, keymap.KeyCode.LeftArrow, keymap.KeyCode.RightArrow, keymap.KeyCode.ForwardSlash, keymap.KeyCode.ForwardSlash)
+// A is "/" for the laser. B is unbound until a B action exists.
+keymap.setPlayerKeys(1, keymap.KeyCode.UpArrow, keymap.KeyCode.DownArrow, keymap.KeyCode.LeftArrow, keymap.KeyCode.RightArrow, keymap.KeyCode.ForwardSlash, keymap.KeyCode.None)
 generateDungeonGrid(GRID_SIZE, GRID_SIZE)
 roomTemplates = pregenerateRoomTemplates()
 minimapSprite = sprites.create(createMinimapImage(), SpriteKind.Hud)
 minimapSprite.setPosition(25, 95)
-minimapSprite.z = 100
+// Keep the minimap below the player so the player is never hidden by it.
+minimapSprite.z = -1
 loadRoom(2, 1)
 bg = image.create(160, 120)
 bg.fill(1)
@@ -461,13 +487,13 @@ let blanknode = sprites.create(img`
     f 1 1 1 1 1 f 
     f 1 1 1 1 1 f 
     . f f f f f . 
-    `, SpriteKind.Player)
+    `, SpriteKind.Hud)
 blanknode.setFlag(SpriteFlag.Invisible, true)
 game.onUpdate(function () {
-    if (debugActivated || console1hidden) {
+    if (debugActivated) {
         return
     }
-    if (isClose(cyberPacman, console1, 20)) {
+    if (!console1hidden && isClose(cyberPacman, console1, 20)) {
         if (popup1hidden) {
             popup1.setFlag(SpriteFlag.Invisible, false)
             popup1hidden = false
@@ -475,9 +501,6 @@ game.onUpdate(function () {
     } else if (!(popup1hidden)) {
         popup1.setFlag(SpriteFlag.Invisible, true)
         popup1hidden = true
-    }
-    if (debugActivated) {
-        return
     }
     hittingWall = false
     for (let wall of sprites.allOfKind(SpriteKind.Wall)) {
