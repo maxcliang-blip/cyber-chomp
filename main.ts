@@ -96,7 +96,9 @@ function drawBossBackground (row: number, col: number) {
 }
 function loadRoom (row: number, col: number) {
     console1hidden = true
-    console1.setFlag(SpriteFlag.Invisible, true)
+    if (console1) {
+        console1.setFlag(SpriteFlag.Invisible, true)
+    }
     for (let w of sprites.allOfKind(SpriteKind.Wall)) {
         w.destroy()
     }
@@ -114,7 +116,7 @@ function loadRoom (row: number, col: number) {
     if (minimapSprite) {
         minimapSprite.setImage(createMinimapImage())
     }
-    if (row == 2 && col == 1) {
+    if (row == 2 && col == 1 && !consoleRemoved && console1) {
         console1hidden = false
         console1.setFlag(SpriteFlag.Invisible, false)
         console1.setPosition(100, 30)
@@ -132,7 +134,9 @@ function clearMinigameSprites () {
 function startFirewall () {
     scene.setBackgroundImage(bg)
     cyberPacman.setFlag(SpriteFlag.Invisible, true)
-    console1.setFlag(SpriteFlag.Invisible, true)
+    if (console1) {
+        console1.setFlag(SpriteFlag.Invisible, true)
+    }
     popup1.setFlag(SpriteFlag.Invisible, true)
     console1hidden = true
     popup1hidden = true
@@ -298,6 +302,12 @@ function handleFirewallInput (nodeIndex: number) {
                     pause(900)
                     if (minigameActive == "firewall") {
                         hasRedKey = true
+                        consoleRemoved = true
+                        console1hidden = true
+                        if (console1) {
+                            sprites.destroy(console1)
+                            console1 = null
+                        }
                         endMinigame(true)
                     }
                 })
@@ -559,6 +569,7 @@ let minimapSprite: Sprite = null
 let roomTemplates: Image[] = []
 let pauseButton: Sprite = null
 let console1hidden = false
+let consoleRemoved = false
 let console1: Sprite = null
 let popup1hidden = false
 let cyberPacman: Sprite = null
