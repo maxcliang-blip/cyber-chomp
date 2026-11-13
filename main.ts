@@ -189,7 +189,22 @@ function startFirewall () {
     round1sequence = [Math.floor(Math.random() * 9), Math.floor(Math.random() * 9), Math.floor(Math.random() * 9)]
     acceptingFirewallInput = false
     control.runInBackground(function () {
-        pause(500)
+        const countdown = fancyText.create("Starting in: 3", 0, 15, fancyText.bold_sans_7)
+        countdown.setKind(SpriteKind.minigameHud)
+        countdown.setPosition(80, 60)
+        for (let count = 3; count >= 1; count--) {
+            if (minigameActive != "firewall") {
+                return
+            }
+            fancyText.setText(countdown, `Starting in: ${count}`)
+            pause(1000)
+        }
+        if (minigameActive != "firewall") {
+            return
+        }
+        fancyText.setText(countdown, "GO!")
+        pause(400)
+        sprites.destroy(countdown)
         for (let idx of round1sequence) {
             if (minigameActive != "firewall") {
                 return
