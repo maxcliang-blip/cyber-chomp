@@ -186,8 +186,27 @@ function startFirewall () {
         }
         nodelist.push(rowList)
     }
-    round1sequence = [Math.floor(Math.random() * 9), Math.floor(Math.random() * 9), Math.floor(Math.random() * 9)]
+    firewallRound = 1
+    round1sequence = makeFirewallSequence(3)
+    round2sequence = makeFirewallSequence(4)
+    round3sequence = makeFirewallSequence(5)
     playFirewallSequence(true)
+}
+function makeFirewallSequence (length: number) {
+    const sequence: number[] = []
+    for (let i = 0; i < length; i++) {
+        sequence.push(Math.floor(Math.random() * 9))
+    }
+    return sequence
+}
+function currentFirewallSequence () {
+    if (firewallRound == 2) {
+        return round2sequence
+    }
+    if (firewallRound == 3) {
+        return round3sequence
+    }
+    return round1sequence
 }
 function resetFirewallNodes () {
     for (let r = 0; r <= 2; r++) {
@@ -199,6 +218,7 @@ function resetFirewallNodes () {
 function playFirewallSequence (withCountdown: boolean) {
     acceptingFirewallInput = false
     firewallInputIndex = 0
+    const sequence = currentFirewallSequence()
     control.runInBackground(function () {
         if (withCountdown) {
             const countdown = fancyText.create("Starting in: 3", 0, 15, fancyText.bold_sans_7)
@@ -217,9 +237,18 @@ function playFirewallSequence (withCountdown: boolean) {
             fancyText.setText(countdown, "GO!")
             pause(400)
             sprites.destroy(countdown)
+        } else {
+            const roundText = fancyText.create(`ROUND ${firewallRound}`, 0, 15, fancyText.bold_sans_7)
+            roundText.setKind(SpriteKind.minigameHud)
+            roundText.setPosition(80, 10)
+            pause(800)
+            if (minigameActive != "firewall") {
+                return
+            }
+            sprites.destroy(roundText)
         }
         resetFirewallNodes()
-        for (let idx of round1sequence) {
+        for (let idx of sequence) {
             if (minigameActive != "firewall") {
                 return
             }
@@ -252,24 +281,39 @@ function handleFirewallInput (nodeIndex: number) {
     if (!acceptingFirewallInput || minigameActive != "firewall") {
         return
     }
+    const sequence = currentFirewallSequence()
     const r = Math.floor(nodeIndex / 3)
     const c = nodeIndex % 3
     const node = nodelist[r][c]
-    if (nodeIndex == round1sequence[firewallInputIndex]) {
+    if (nodeIndex == sequence[firewallInputIndex]) {
         node.setImage(correctnode.image)
         firewallInputIndex += 1
-        if (firewallInputIndex >= round1sequence.length) {
+        if (firewallInputIndex >= sequence.length) {
             acceptingFirewallInput = false
-            const clearText = fancyText.create("ROUND 1 CLEAR", 0, 7, fancyText.bold_sans_7)
-            clearText.setKind(SpriteKind.minigameHud)
-            clearText.setPosition(80, 10)
-            control.runInBackground(function () {
-                pause(900)
-                if (minigameActive == "firewall") {
-                    hasRedKey = true
-                    endMinigame(true)
-                }
-            })
+            if (firewallRound >= 3) {
+                const clearText = fancyText.create("FIREWALL BREACHED", 0, 7, fancyText.bold_sans_7)
+                clearText.setKind(SpriteKind.minigameHud)
+                clearText.setPosition(80, 10)
+                control.runInBackground(function () {
+                    pause(900)
+                    if (minigameActive == "firewall") {
+                        hasRedKey = true
+                        endMinigame(true)
+                    }
+                })
+            } else {
+                const clearText = fancyText.create(`ROUND ${firewallRound} CLEAR`, 0, 7, fancyText.bold_sans_7)
+                clearText.setKind(SpriteKind.minigameHud)
+                clearText.setPosition(80, 10)
+                control.runInBackground(function () {
+                    pause(900)
+                    if (minigameActive == "firewall") {
+                        sprites.destroy(clearText)
+                        firewallRound += 1
+                        playFirewallSequence(false)
+                    }
+                })
+            }
         } else {
             control.runInBackground(function () {
                 pause(250)
@@ -287,8 +331,7 @@ function handleFirewallInput (nodeIndex: number) {
         control.runInBackground(function () {
             pause(900)
             if (minigameActive == "firewall") {
-                sprites.destroy(failText)
-                playFirewallSequence(false)
+                endMinigame(false)
             }
         })
     }
@@ -559,7 +602,10 @@ let hasBlueKey = false
 let hasRedKey = false
 let acceptingFirewallInput = false
 let firewallInputIndex = 0
+let firewallRound = 1
 let round1sequence: number[] = []
+let round2sequence: number[] = []
+let round3sequence: number[] = []
 let nodelist: Sprite[][] = []
 let wrongnode: Sprite = null
 let correctnode: Sprite = null
