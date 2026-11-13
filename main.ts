@@ -191,7 +191,7 @@ function startFirewall () {
     control.runInBackground(function () {
         const countdown = fancyText.create("Starting in: 3", 0, 15, fancyText.bold_sans_7)
         countdown.setKind(SpriteKind.minigameHud)
-        countdown.setPosition(80, 60)
+        countdown.setPosition(80, 10)
         for (let count = 3; count >= 1; count--) {
             if (minigameActive != "firewall") {
                 return
