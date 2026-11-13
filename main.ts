@@ -187,24 +187,38 @@ function startFirewall () {
         nodelist.push(rowList)
     }
     round1sequence = [Math.floor(Math.random() * 9), Math.floor(Math.random() * 9), Math.floor(Math.random() * 9)]
+    playFirewallSequence(true)
+}
+function resetFirewallNodes () {
+    for (let r = 0; r <= 2; r++) {
+        for (let c = 0; c <= 2; c++) {
+            nodelist[r][c].setImage(blanknode.image)
+        }
+    }
+}
+function playFirewallSequence (withCountdown: boolean) {
     acceptingFirewallInput = false
+    firewallInputIndex = 0
     control.runInBackground(function () {
-        const countdown = fancyText.create("Starting in: 3", 0, 15, fancyText.bold_sans_7)
-        countdown.setKind(SpriteKind.minigameHud)
-        countdown.setPosition(80, 10)
-        for (let count = 3; count >= 1; count--) {
+        if (withCountdown) {
+            const countdown = fancyText.create("Starting in: 3", 0, 15, fancyText.bold_sans_7)
+            countdown.setKind(SpriteKind.minigameHud)
+            countdown.setPosition(80, 10)
+            for (let count = 3; count >= 1; count--) {
+                if (minigameActive != "firewall") {
+                    return
+                }
+                fancyText.setText(countdown, `Starting in: ${count}`)
+                pause(1000)
+            }
             if (minigameActive != "firewall") {
                 return
             }
-            fancyText.setText(countdown, `Starting in: ${count}`)
-            pause(1000)
+            fancyText.setText(countdown, "GO!")
+            pause(400)
+            sprites.destroy(countdown)
         }
-        if (minigameActive != "firewall") {
-            return
-        }
-        fancyText.setText(countdown, "GO!")
-        pause(400)
-        sprites.destroy(countdown)
+        resetFirewallNodes()
         for (let idx of round1sequence) {
             if (minigameActive != "firewall") {
                 return
@@ -223,6 +237,61 @@ function startFirewall () {
             acceptingFirewallInput = true
         }
     })
+}
+function getFirewallNodeAt (x: number, y: number) {
+    for (let r = 0; r <= 2; r++) {
+        for (let c = 0; c <= 2; c++) {
+            if (Math.abs(x - nodelist[r][c].x) <= 15 && Math.abs(y - nodelist[r][c].y) <= 15) {
+                return r * 3 + c
+            }
+        }
+    }
+    return -1
+}
+function handleFirewallInput (nodeIndex: number) {
+    if (!acceptingFirewallInput || minigameActive != "firewall") {
+        return
+    }
+    const r = Math.floor(nodeIndex / 3)
+    const c = nodeIndex % 3
+    const node = nodelist[r][c]
+    if (nodeIndex == round1sequence[firewallInputIndex]) {
+        node.setImage(correctnode.image)
+        firewallInputIndex += 1
+        if (firewallInputIndex >= round1sequence.length) {
+            acceptingFirewallInput = false
+            const clearText = fancyText.create("ROUND 1 CLEAR", 0, 7, fancyText.bold_sans_7)
+            clearText.setKind(SpriteKind.minigameHud)
+            clearText.setPosition(80, 10)
+            control.runInBackground(function () {
+                pause(900)
+                if (minigameActive == "firewall") {
+                    hasRedKey = true
+                    endMinigame(true)
+                }
+            })
+        } else {
+            control.runInBackground(function () {
+                pause(250)
+                if (minigameActive == "firewall") {
+                    node.setImage(blanknode.image)
+                }
+            })
+        }
+    } else {
+        acceptingFirewallInput = false
+        node.setImage(wrongnode.image)
+        const failText = fancyText.create("SEQUENCE FAILED", 0, 2, fancyText.bold_sans_7)
+        failText.setKind(SpriteKind.minigameHud)
+        failText.setPosition(80, 10)
+        control.runInBackground(function () {
+            pause(900)
+            if (minigameActive == "firewall") {
+                sprites.destroy(failText)
+                playFirewallSequence(false)
+            }
+        })
+    }
 }
 function drawDoor (bg: Image, side: number, color: number = 15) {
     for (let i = 0; i <= 20; i++) {
@@ -344,6 +413,13 @@ function handleNavigation (dir: number) {
     }
 }
 browserEvents.MouseLeft.onEvent(browserEvents.MouseButtonEvent.Pressed, function (x, y) {
+    if (minigameActive == "firewall" && acceptingFirewallInput) {
+        const nodeIndex = getFirewallNodeAt(x, y)
+        if (nodeIndex >= 0) {
+            handleFirewallInput(nodeIndex)
+        }
+        return
+    }
     if (!(debugActivated) && minigameActive == "" && x < 160 && x > 145 && y < 20 && y > 0) {
         debugActivated = true
         renderDebugMenu()
@@ -482,6 +558,7 @@ let hasArenakey = false
 let hasBlueKey = false
 let hasRedKey = false
 let acceptingFirewallInput = false
+let firewallInputIndex = 0
 let round1sequence: number[] = []
 let nodelist: Sprite[][] = []
 let wrongnode: Sprite = null
