@@ -27,6 +27,7 @@ function startMinigame (kind: string) {
     minigameActive = kind
     minigameReturnX = cyberPacman.x
     minigameReturnY = cyberPacman.y
+    controller.moveSprite(cyberPacman, 0, 0)
     minimapSprite.setFlag(SpriteFlag.Invisible, true)
     pauseButton.setFlag(SpriteFlag.Invisible, true)
     if (coordsText) {
@@ -129,23 +130,82 @@ function clearMinigameSprites () {
     sprites.destroyAllSpritesOfKind(SpriteKind.minigameSprites)
 }
 function startFirewall () {
-    // Placeholder until the Firewall Breach minigame is implemented.
-    // Without this, starting the minigame hides the player forever (soft-lock).
     scene.setBackgroundImage(bg)
     cyberPacman.setFlag(SpriteFlag.Invisible, true)
     console1.setFlag(SpriteFlag.Invisible, true)
     popup1.setFlag(SpriteFlag.Invisible, true)
     console1hidden = true
     popup1hidden = true
-    const placeholder = fancyText.create("Firewall Breach\ncoming soon...")
-    placeholder.setKind(SpriteKind.minigameHud)
-    fancyText.setColor(placeholder, 15)
-    fancyText.setFont(placeholder, fancyText.bold_sans_7)
-    placeholder.setPosition(80, 60)
+    blanknode = sprites.create(img`
+        . f f f f f . 
+        f 1 1 1 1 1 f 
+        f 1 1 1 1 1 f 
+        f 1 1 1 1 1 f 
+        f 1 1 1 1 1 f 
+        f 1 1 1 1 1 f 
+        . f f f f f . 
+        `, SpriteKind.minigameHud)
+    sequencenode = sprites.create(img`
+        . f f f f f . 
+        f 8 8 8 8 8 f 
+        f 8 8 8 8 8 f 
+        f 8 8 8 8 8 f 
+        f 8 8 8 8 8 f 
+        f 8 8 8 8 8 f 
+        . f f f f f . 
+        `, SpriteKind.minigameHud)
+    correctnode = sprites.create(img`
+        . f f f f f . 
+        f 7 7 7 7 7 f 
+        f 7 7 7 7 7 f 
+        f 7 7 7 7 7 f 
+        f 7 7 7 7 7 f 
+        f 7 7 7 7 7 f 
+        . f f f f f . 
+        `, SpriteKind.minigameHud)
+    wrongnode = sprites.create(img`
+        . f f f f f . 
+        f 2 2 2 2 2 f 
+        f 2 2 2 2 2 f 
+        f 2 2 2 2 2 f 
+        f 2 2 2 2 2 f 
+        f 2 2 2 2 2 f 
+        . f f f f f . 
+        `, SpriteKind.minigameHud)
+    sequencenode.setFlag(SpriteFlag.Invisible, true)
+    blanknode.setFlag(SpriteFlag.Invisible, true)
+    correctnode.setFlag(SpriteFlag.Invisible, true)
+    wrongnode.setFlag(SpriteFlag.Invisible, true)
+    nodelist = []
+    for (let row = 0; row <= 2; row++) {
+        let rowList: Sprite[] = []
+        for (let col = 0; col <= 2; col++) {
+            let newNode = sprites.create(blanknode.image, SpriteKind.minigameHud)
+            newNode.setPosition(50 + col * 30, 30 + row * 30)
+            rowList.push(newNode)
+        }
+        nodelist.push(rowList)
+    }
+    round1sequence = [Math.floor(Math.random() * 9), Math.floor(Math.random() * 9), Math.floor(Math.random() * 9)]
+    acceptingFirewallInput = false
     control.runInBackground(function () {
-        pause(1200)
+        pause(500)
+        for (let idx of round1sequence) {
+            if (minigameActive != "firewall") {
+                return
+            }
+            const r = Math.floor(idx / 3)
+            const c = idx % 3
+            nodelist[r][c].setImage(sequencenode.image)
+            pause(350)
+            if (minigameActive != "firewall") {
+                return
+            }
+            nodelist[r][c].setImage(blanknode.image)
+            pause(150)
+        }
         if (minigameActive == "firewall") {
-            endMinigame(false)
+            acceptingFirewallInput = true
         }
     })
 }
@@ -193,6 +253,7 @@ function drawDungeonMap (canvas: Image, offsetX: number, offsetY: number, cellSi
 function endMinigame (won: boolean) {
     clearMinigameSprites()
     clearMinigameHud()
+    acceptingFirewallInput = false
     minigameActive = ""
     if (won) {
     	
@@ -200,6 +261,7 @@ function endMinigame (won: boolean) {
     minimapSprite.setFlag(SpriteFlag.Invisible, false)
     pauseButton.setFlag(SpriteFlag.Invisible, false)
     cyberPacman.setFlag(SpriteFlag.Invisible, false)
+    controller.moveSprite(cyberPacman, 200, 200)
     loadRoom(currentRoomRow, currentRoomCol)
     cyberPacman.setPosition(minigameReturnX, minigameReturnY)
 }
@@ -337,6 +399,9 @@ function renderDebugMenu () {
 browserEvents.Comma.onEvent(browserEvents.KeyEvent.Pressed, function () {
     if (debugActivated) {
         restoreGameplayState()
+    } else if (minigameActive != "") {
+        // Temporary escape hatch so an unfinished minigame cannot soft-lock the game.
+        endMinigame(false)
     }
 })
 let lastY = 0
@@ -401,6 +466,13 @@ let tempcount = 0
 let hasArenakey = false
 let hasBlueKey = false
 let hasRedKey = false
+let acceptingFirewallInput = false
+let round1sequence: number[] = []
+let nodelist: Sprite[][] = []
+let wrongnode: Sprite = null
+let correctnode: Sprite = null
+let sequencenode: Sprite = null
+let blanknode: Sprite = null
 let minigameReturnX: number
 let minigameReturnY: number
 popup1 = fancyText.create("(A)")
@@ -463,21 +535,11 @@ minimapSprite = sprites.create(createMinimapImage(), SpriteKind.Hud)
 minimapSprite.setPosition(25, 95)
 // Keep the minimap below the player so the player is never hidden by it.
 minimapSprite.z = -1
-loadRoom(2, 1)
 bg = image.create(160, 120)
 bg.fill(1)
-let blanknode = sprites.create(img`
-    . f f f f f . 
-    f 1 1 1 1 1 f 
-    f 1 1 1 1 1 f 
-    f 1 1 1 1 1 f 
-    f 1 1 1 1 1 f 
-    f 1 1 1 1 1 f 
-    . f f f f f . 
-    `, SpriteKind.Hud)
-blanknode.setFlag(SpriteFlag.Invisible, true)
+loadRoom(2, 1)
 game.onUpdate(function () {
-    if (debugActivated) {
+    if (debugActivated || minigameActive != "") {
         return
     }
     if (!console1hidden && isClose(cyberPacman, console1, 20)) {
