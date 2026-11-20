@@ -5,11 +5,158 @@ namespace SpriteKind {
     export const popuptext = SpriteKind.create()
     export const minigameSprites = SpriteKind.create()
     export const minigameHud = SpriteKind.create()
+    export const SkillNodes=SpriteKind.create()
+}
+interface SkillNode {
+    name: string
+    desc: string
+    cost: number
+    req: number        
+    x: number          
+    y: number          
+    unlocked: boolean
+}
+let skillNodeUnavailable=sprites.create(img`
+    . f f f f f f f .
+    f b b b b b b b f
+    f b b b b b b b f
+    f b b b b b b b f
+    f b b b b b b b f
+    f b b b b b b b f
+    f b b b b b b b f
+    f b b b b b b b f
+    . f f f f f f f .
+`, SpriteKind.SkillNodes)
+let skillNodeReady=sprites.create(img`
+    . f f f f f f f .
+    f 9 9 9 9 9 9 9 f
+    f 9 9 9 9 9 9 9 f
+    f 9 9 9 9 9 9 9 f
+    f 9 9 9 9 9 9 9 f
+    f 9 9 9 9 9 9 9 f
+    f 9 9 9 9 9 9 9 f
+    f 9 9 9 9 9 9 9 f
+    . f f f f f f f .
+`, SpriteKind.SkillNodes)
+let skillNodeUnlocked=sprites.create(img`
+    . f f f f f f f .
+    f 5 5 5 5 5 5 5 f
+    f 5 5 5 5 5 5 5 f
+    f 5 5 5 5 5 5 5 f
+    f 5 5 5 5 5 5 5 f
+    f 5 5 5 5 5 5 5 f
+    f 5 5 5 5 5 5 5 f
+    f 5 5 5 5 5 5 5 f
+    . f f f f f f f .
+`, SpriteKind.SkillNodes)
+let skillNodeBought=sprites.create(img`
+    . f f f f f f f .
+    f 7 7 7 7 7 7 7 f
+    f 7 7 7 7 7 7 7 f
+    f 7 7 7 7 7 7 7 f
+    f 7 7 7 7 7 7 7 f
+    f 7 7 7 7 7 7 7 f
+    f 7 7 7 7 7 7 7 f
+    f 7 7 7 7 7 7 7 f
+    . f f f f f f f .
+`, SpriteKind.SkillNodes)
+skillNodeUnavailable.setFlag(SpriteFlag.Invisible, true)
+skillNodeReady.setFlag(SpriteFlag.Invisible, true)
+skillNodeUnlocked.setFlag(SpriteFlag.Invisible, true)
+skillNodeBought.setFlag(SpriteFlag.Invisible, true)
+let skills: SkillNode[] = [
+    { name: "Overclock", desc: "Faster movement", cost: 1, req: -1, x: 40, y: 30, unlocked: false },
+    { name: "Rapid Fire", desc: "Faster laser fire", cost: 2, req: 0, x: 70, y: 30, unlocked: false },
+    { name: "Piercing Laser", desc: "Laser pierces enemies", cost: 3, req: 1, x: 100, y: 30, unlocked: false },
+    { name: "Ghost Step", desc: "Survive one hit", cost: 2, req: 0, x: 10, y: 60, unlocked: false },
+    { name: "Data Leech", desc: "Gain more XP", cost: 2, req: 0, x: 40, y: 60, unlocked: false },
+    { name: "Firewall Hacker", desc: "Easier firewalls", cost: 3, req: 4, x: 70, y: 60, unlocked: false },
+    { name: "Arena Ready", desc: "Boss arena boost", cost: 4, req: 2, x: 100, y: 60, unlocked: false }
+]
+function renderSkillTree(background:Image){
+    let canvas=background.clone()
+        canvas.print("SP: " + skillpoints, 4, 4, 15)
+        if (hoveredSkillIndex != -1) {
+        let s = skills[hoveredSkillIndex]
+        let boxHeight = 26
+        let boxY = SCREEN_HEIGHT - boxHeight
+        canvas.fillRect(0, boxY, SCREEN_WIDTH, boxHeight, 15) // Black box
+        canvas.drawRect(0, boxY, SCREEN_WIDTH, boxHeight, 1)  // White border
+        canvas.print(s.name + " (" + s.cost + " SP)", 4, boxY + 3, 1)
+        canvas.print(s.desc, 4, boxY + 14, 5)
+    }
+
+    for (const skill of skills) {
+        if (skill.req != -1) {
+            let parent = skills[skill.req]
+            canvas.drawLine(skill.x + 4, skill.y + 4, parent.x + 4, parent.y + 4, 15)
+        }
+    }
+    for (const skill of skills){
+        let requirementMet=skill.req==-1||skills[skill.req].unlocked
+        if (!skill.unlocked){
+            if (skillpoints>=skill.cost && requirementMet){
+                canvas.drawTransparentImage(skillNodeReady.image, skill.x, skill.y)
+            }
+            else if (skillpoints<skill.cost && requirementMet){
+                canvas.drawTransparentImage(skillNodeUnlocked.image, skill.x, skill.y)
+            }
+            else if (!requirementMet){
+                canvas.drawTransparentImage(skillNodeUnavailable.image, skill.x, skill.y)
+            }
+        }
+        else {
+            canvas.drawTransparentImage(skillNodeBought.image, skill.x, skill.y)
+        }
+    }
+    scene.setBackgroundImage(canvas)
+}
+let skillTreePlayerX:number
+let skillTreePlayerY:number
+function openSkillTree() {
+    skillTreeOpen = true
+    pauseAllEnemies()
+
+    skillTreePlayerX = cyberPacman.x
+    skillTreePlayerY = cyberPacman.y
+    controller.moveSprite(cyberPacman, 0, 0)
+
+    if (coordsText) {
+        sprites.destroy(coordsText)
+        coordsText = null
+    }
+    if (popup1 && fancyText.getText(popup1) == "(A)") {
+        popup1.setFlag(SpriteFlag.Invisible, true)
+        popup1hidden = true
+    }
+    const spritesToHide = [
+        cyberPacman,
+        minimapSprite,
+        console1,
+        statusbar,
+        leveltext,
+        pauseButton
+    ]
+
+    for (let s of spritesToHide) {
+        if (s) {
+            s.setFlag(SpriteFlag.Invisible, true)
+        }
+    }
+
+    bg = image.create(SCREEN_WIDTH, SCREEN_HEIGHT)
+    bg.fill(1)
+    scene.setBackgroundImage(bg)
+    renderSkillTree(bg)
+}
+
+function closeSkillTree() {
+    restoreGameplayState("skilltree")
 }
 let showMinimap = true
 function renderDebugOptions() {
     cleanUIElements(debugOptions)
-    labels = [`1. Coordinates: ${showCoordinates ? "ON" : "OFF"}`, "2. Visualize Map", "3. Resume Game", `4. Minimap: ${showMinimap ? "ON" : "OFF"}`]
+    labels = [`1. Coordinates: ${showCoordinates ? "ON" : "OFF"}`, "2. Visualize Map", `3. Minimap: ${showMinimap ? "ON" : "OFF"}`, "4. Resume Game",]
     for (let k = 0; k <= 3; k++) {
         opt = fancyText.create(`${debugSelection == k ? "> " : " "}${labels[k]}`)
         fancyText.setColor(opt, debugSelection == k ? 2 : 15)
@@ -84,6 +231,12 @@ function startMinigame(kind: string) {
     controller.moveSprite(cyberPacman, 0, 0)
     minimapSprite.setFlag(SpriteFlag.Invisible, true)
     pauseButton.setFlag(SpriteFlag.Invisible, true)
+    if (statusbar) {
+        statusbar.setFlag(SpriteFlag.Invisible, true)
+    }
+    if (leveltext) {
+        leveltext.setFlag(SpriteFlag.Invisible, true)
+    }
     if (coordsText) {
         sprites.destroy(coordsText)
         coordsText = null
@@ -119,6 +272,7 @@ function clearEnemies() {
 function pauseAllEnemies() {
     for (let enemy of sprites.allOfKind(SpriteKind.Follower)) {
         enemy.unfollow()
+        enemy.setVelocity(0, 0)
         enemy.setFlag(SpriteFlag.Invisible, true)
     }
 }
@@ -133,6 +287,7 @@ function cleanUIElements(arr: Sprite[]) {
 function clearMinigameSprites() {
     sprites.destroyAllSpritesOfKind(SpriteKind.minigameSprites)
 }
+
 function startFirewall() {
     scene.setBackgroundImage(bg)
     cyberPacman.setFlag(SpriteFlag.Invisible, true)
@@ -199,49 +354,34 @@ function startFirewall() {
     playFirewallSequence(true)
 }
 controller.A.onEvent(ControllerButtonEvent.Pressed, function () {
-    if (debugActivated || minigameActive != "") {
+    if (debugActivated || minigameActive != "" || skillTreeOpen) {
         return
     }
-    if (facingright) {
-        projectile = sprites.createProjectileFromSprite(img`
-            . . . . . . . . . . . . . . . . 
-            . . . . . . . . . . . . . . . . 
-            . . . . . . . . . . . . . . . . 
-            . . . . . . . . . . . . . . . . 
-            . . . . . . . . . . . . . . . . 
-            . . 2 2 2 2 2 2 2 2 2 2 2 2 . . 
-            . . 3 3 3 3 3 3 3 3 3 3 3 3 . . 
-            . . 1 1 1 1 1 1 1 1 1 1 1 1 . . 
-            . . 1 1 1 1 1 1 1 1 1 1 1 1 . . 
-            . . 3 3 3 3 3 3 3 3 3 3 3 3 . . 
-            . . 2 2 2 2 2 2 2 2 2 2 2 2 . . 
-            . . . . . . . . . . . . . . . . 
-            . . . . . . . . . . . . . . . . 
-            . . . . . . . . . . . . . . . . 
-            . . . . . . . . . . . . . . . . 
-            . . . . . . . . . . . . . . . . 
-            `, cyberPacman, 200, 0)
-    } else {
-        projectile = sprites.createProjectileFromSprite(img`
-            . . . . . . . . . . . . . . . . 
-            . . . . . . . . . . . . . . . . 
-            . . . . . . . . . . . . . . . . 
-            . . . . . . . . . . . . . . . . 
-            . . . . . . . . . . . . . . . . 
-            . . 2 2 2 2 2 2 2 2 2 2 2 2 . . 
-            . . 3 3 3 3 3 3 3 3 3 3 3 3 . . 
-            . . 1 1 1 1 1 1 1 1 1 1 1 1 . . 
-            . . 1 1 1 1 1 1 1 1 1 1 1 1 . . 
-            . . 3 3 3 3 3 3 3 3 3 3 3 3 . . 
-            . . 2 2 2 2 2 2 2 2 2 2 2 2 . . 
-            . . . . . . . . . . . . . . . . 
-            . . . . . . . . . . . . . . . . 
-            . . . . . . . . . . . . . . . . 
-            . . . . . . . . . . . . . . . . 
-            . . . . . . . . . . . . . . . . 
-            `, cyberPacman, -200, 0)
+    if (game.runtime() - timesincelaser < laser_cooldown) {
+        return
     }
+    
+    projectile = sprites.createProjectileFromSprite(img`
+        . . . . . . . . . . . . . . . .
+        . . . . . . . . . . . . . . . .
+        . . . . . . . . . . . . . . . .
+        . . . . . . . . . . . . . . . .
+        . . . . . . . . . . . . . . . .
+        . . 2 2 2 2 2 2 2 2 2 2 2 2 . .
+        . . 3 3 3 3 3 3 3 3 3 3 3 3 . .
+        . . 1 1 1 1 1 1 1 1 1 1 1 1 . .
+        . . 1 1 1 1 1 1 1 1 1 1 1 1 . .
+        . . 3 3 3 3 3 3 3 3 3 3 3 3 . .
+        . . 2 2 2 2 2 2 2 2 2 2 2 2 . .
+        . . . . . . . . . . . . . . . .
+        . . . . . . . . . . . . . . . .
+        . . . . . . . . . . . . . . . .
+        . . . . . . . . . . . . . . . .
+        . . . . . . . . . . . . . . . .
+        `, cyberPacman, facingright ? 200 : -200, 0)
+    timesincelaser = game.runtime()
 })
+let timesincelaser = -200
 function drawDungeonMap(canvas: Image, offsetX: number, offsetY: number, cellSize: number, gap: number) {
     for (let a = 0; a <= GRID_SIZE - 1; a++) {
         for (let h = 0; h <= GRID_SIZE - 1; h++) {
@@ -276,6 +416,8 @@ function endMinigame(won: boolean) {
     }
     minimapSprite.setFlag(SpriteFlag.Invisible, false)
     pauseButton.setFlag(SpriteFlag.Invisible, false)
+    statusbar.setFlag(SpriteFlag.Invisible, false)
+    leveltext.setFlag(SpriteFlag.Invisible, false)
     cyberPacman.setFlag(SpriteFlag.Invisible, false)
     controller.moveSprite(cyberPacman, SPEED, SPEED)
     loadRoom(currentRoomRow, currentRoomCol)
@@ -319,11 +461,21 @@ function createMinimapImage() {
     return mm
 }
 browserEvents.A.onEvent(browserEvents.KeyEvent.Pressed, function () {
-    if (debugActivated || minigameActive != "") {
+    if (debugActivated || minigameActive != "" || skillTreeOpen) {
         return
     }
     if (!(console1hidden) && !(popup1hidden)) {
         startMinigame("firewall")
+    }
+})
+browserEvents.K.onEvent(browserEvents.KeyEvent.Pressed, function () {
+    if (debugActivated || minigameActive != "") {
+        return
+    }
+    if (skillTreeOpen) {
+        restoreGameplayState("skilltree")
+    } else {
+        openSkillTree()
     }
 })
 function spawnRoomEnemies(row: number, col: number) {
@@ -499,7 +651,7 @@ controller.down.onEvent(ControllerButtonEvent.Pressed, function () {
     handleNavigation(1)
 })
 sprites.onOverlap(SpriteKind.Player, SpriteKind.Follower, function (player2, enemy) {
-    if (debugActivated || minigameActive != "") {
+    if (debugActivated || minigameActive != "" || skillTreeOpen) {
         return
     }
     if (!enemyInRoom(enemy, currentRoomRow, currentRoomCol)) {
@@ -518,15 +670,15 @@ browserEvents.Enter.onEvent(browserEvents.KeyEvent.Pressed, function () {
     if (!(debugActivated)) {
         return
     }
-    if (mapExitPrompt || debugSelection == 2) {
-        restoreGameplayState()
+    if (mapExitPrompt || debugSelection == 3) {
+        restoreGameplayState("debug")
     } else if (debugSelection == 0) {
         showCoordinates = !(showCoordinates)
         renderDebugOptions()
     } else if (debugSelection == 1) {
         visualizeMap()
     }
-    else if (debugSelection == 3) {
+    else if (debugSelection == 2) {
         showMinimap = !(showMinimap)
         renderDebugOptions()
     }
@@ -545,6 +697,23 @@ function handleNavigation(dir: number) {
     }
 }
 browserEvents.MouseLeft.onEvent(browserEvents.MouseButtonEvent.Pressed, function (x, y) {
+    if (skillTreeOpen) {
+        
+        for (const skill of skills) {
+            if (x >= skill.x && x < skill.x + 9 && y >= skill.y && y < skill.y + 9) {
+                let requirementMet = skill.req == -1 || skills[skill.req].unlocked
+
+                if (!skill.unlocked && requirementMet && skillpoints >= skill.cost) {
+                    game.splash("Bought " + skill.name)
+                    skillpoints -= skill.cost
+                    skill.unlocked = true
+                    renderSkillTree(bg) 
+                }
+                break
+            }
+        }
+        return
+    }
     if (minigameActive == "firewall" && acceptingFirewallInput) {
         nodeIndex = getFirewallNodeAt(x, y)
         if (nodeIndex >= 0) {
@@ -556,10 +725,29 @@ browserEvents.MouseLeft.onEvent(browserEvents.MouseButtonEvent.Pressed, function
         debugActivated = true
         renderDebugMenu()
     } else if (debugActivated && minigameActive == "" && x < 160 && x > 145 && y < 20 && y > 0) {
-        restoreGameplayState()
+        restoreGameplayState("debug")
     }
 })
-function restoreGameplayState() {
+let hoveredSkillIndex=-1
+browserEvents.onMouseMove(function(x: number, y: number) {
+    if (!skillTreeOpen || minigameActive!="" || debugActivated){
+        return
+    }
+    let foundIndex = -1
+    for (let i = 0; i < skills.length; i++) {
+        let skill = skills[i]
+        if (x >= skill.x && x < skill.x + 9 && y >= skill.y && y < skill.y + 9) {
+            foundIndex = i
+            break
+        }
+    }
+    if (foundIndex != hoveredSkillIndex) {
+        hoveredSkillIndex = foundIndex
+        renderSkillTree(bg)
+    }
+
+})
+function restoreGameplayState(kind:string) {
     if (debugTitle) {
         sprites.destroy(debugTitle)
         debugTitle = null
@@ -595,7 +783,16 @@ function restoreGameplayState() {
         . . . . . . . . . . . . . . . . 
         `)
     cyberPacman.setFlag(SpriteFlag.Invisible, false)
+    if (kind=="debug"){
     cyberPacman.setPosition(debugPlayerX, debugPlayerY)
+    }
+    else if (kind=="skilltree"){
+            cyberPacman.setPosition(skillTreePlayerX, skillTreePlayerY)
+            pauseButton.setFlag(SpriteFlag.Invisible, false)
+            skillTreeOpen=false
+    }
+    statusbar.setFlag(SpriteFlag.Invisible, false)
+    leveltext.setFlag(SpriteFlag.Invisible, false)
     controller.moveSprite(cyberPacman, SPEED, SPEED)
     debugActivated = false
     loadRoom(currentRoomRow, currentRoomCol)
@@ -616,6 +813,12 @@ function renderDebugMenu() {
     pauseAllEnemies()
     if (console1) {
         console1.setFlag(SpriteFlag.Invisible, true)
+    }
+    if (statusbar) {
+        statusbar.setFlag(SpriteFlag.Invisible, true)
+    }
+    if (leveltext) {
+        leveltext.setFlag(SpriteFlag.Invisible, true)
     }
     debugPlayerX = cyberPacman.x
     debugPlayerY = cyberPacman.y
@@ -673,7 +876,7 @@ function currentFirewallSequence() {
 }
 browserEvents.Comma.onEvent(browserEvents.KeyEvent.Pressed, function () {
     if (debugActivated) {
-        restoreGameplayState()
+        restoreGameplayState("debug")
     } else if (minigameActive != "") {
         endMinigame(false)
     }
@@ -731,16 +934,33 @@ function resetFirewallNodes() {
         }
     }
 }
+
 sprites.onOverlap(SpriteKind.Follower, SpriteKind.Projectile, function (enemy7, laser) {
-    if (debugActivated || minigameActive != "") {
+    if (debugActivated || minigameActive != "" || skillTreeOpen) {
         return
     }
     if (!enemyInRoom(enemy7, currentRoomRow, currentRoomCol)) {
         return
     }
+    statusbar.value += 10
+    xp += 10
+    xptonext -= 10
+    if (xptonext == 0) {
+        statusbar.value = 0
+
+        xplevel += 1
+        xptonext = 30 * xplevel
+        statusbar.max = 30 * xplevel
+        fancyText.setText(leveltext, `Level ${xplevel}`)
+        skillpoints++
+    }
+    console.log(xp)
+    console.log(xplevel)
+    console.log(xptonext)
     sprites.destroy(enemy7)
     sprites.destroy(laser)
 })
+let skillpoints=0
 function handleFirewallInput(nodeIndex: number) {
     if (!(acceptingFirewallInput) || minigameActive != "firewall") {
         return
@@ -806,6 +1026,8 @@ function handleFirewallInput(nodeIndex: number) {
         })
     }
 }
+let statusbar = statusbars.create(50, 4, StatusBarKind.Health)
+statusbar.setPosition(120, 110)
 let bossEdgeDown = false
 let bossEdgeUp = false
 let bossEdgeRight = false
@@ -813,6 +1035,9 @@ let bossEdgeLeft = false
 let inDoorX = false
 let inDoorY = false
 let lastY = 0
+statusbar.value = 0
+statusbar.setStatusBarFlag(StatusBarFlag.None, false)
+statusbar.max = 30
 let lastX = 0
 let hittingWall = false
 let failText: fancyText.TextSprite = null
@@ -849,6 +1074,7 @@ let opt: fancyText.TextSprite = null
 let debugOptions: fancyText.TextSprite[] = []
 let pauseButton: Sprite = null
 let popup1hidden = false
+let skillTreeOpen=false
 let SCREEN_HEIGHT = 0
 let SCREEN_WIDTH = 0
 let GRID_SIZE = 0
@@ -894,14 +1120,21 @@ let roomTemplates: Image[] = []
 let minimapSprite: Sprite = null
 let bossBackground: Image = null
 let bg: Image = null
+
 let enemyGraceUntil = 0
 let minigameActive = ""
 let baseImg: Image = null
 facingright = true
+let xp = 0
+let xplevel = 1
+let xptonext = 30
+let leveltext = fancyText.create(`Level ${xplevel}`)
+fancyText.setFont(leveltext, fancyText.bold_sans_7)
+fancyText.setColor(leveltext, 15)
+leveltext.setPosition(120, 102)
 function loadRoom(row: number, col: number) {
     enemyGraceUntil = control.millis() + 1000
     initRoomSpawned()
-    // Lasers belong to the room they were fired in.
     sprites.destroyAllSpritesOfKind(SpriteKind.Projectile)
     console1hidden = true
     if (console1) {
@@ -914,7 +1147,7 @@ function loadRoom(row: number, col: number) {
         sprites.destroy(coordsText)
         coordsText = null
     }
-    
+
     roomBitValue = dungeonGrid[row][col]
     if (showCoordinates) {
         coordsText = fancyText.create(`(${row}, ${col})`)
@@ -961,6 +1194,7 @@ function drawDoor(bg: Image, side: number, color: number = 15) {
     }
     return bg
 }
+let laser_cooldown = 200 // in ms
 BOSS_ROW = 7
 BOSS_COL = 7
 cyberPacman = sprites.create(assets.image`pacman`, SpriteKind.Player)
@@ -1100,7 +1334,7 @@ showCoordinates = true
 GRID_SIZE = 10
 SCREEN_WIDTH = 160
 SCREEN_HEIGHT = 120
-let SPEED=100
+let SPEED = 100
 cyberPacman.setScale(0.25, ScaleAnchor.Middle)
 cyberPacman.setPosition(80, 60)
 controller.moveSprite(cyberPacman, SPEED, SPEED)
@@ -1126,23 +1360,23 @@ console1 = sprites.create(img`
 console1.setFlag(SpriteFlag.Invisible, true)
 console1hidden = true
 pauseButton = sprites.create(img`
-    . . . . . . . . . . . . . . . . 
-    . . . . . . . . . . . . . . . . 
-    . . . f f f . . . f f f . . . . 
-    . . . f f f . . . f f f . . . . 
-    . . . f f f . . . f f f . . . . 
-    . . . f f f . . . f f f . . . . 
-    . . . f f f . . . f f f . . . . 
-    . . . f f f . . . f f f . . . . 
-    . . . f f f . . . f f f . . . . 
-    . . . f f f . . . f f f . . . . 
-    . . . f f f . . . f f f . . . . 
-    . . . f f f . . . f f f . . . . 
-    . . . f f f . . . f f f . . . . 
-    . . . . . . . . . . . . . . . . 
-    . . . . . . . . . . . . . . . . 
-    . . . . . . . . . . . . . . . . 
-    `, SpriteKind.Hud)
+    . . . . . . . . . . . . . . . .
+    . . . . . . . . . . . . . . . .
+    . . . f f f . . . f f f . . . .
+    . . . f f f . . . f f f . . . .
+    . . . f f f . . . f f f . . . .
+    . . . f f f . . . f f f . . . .
+    . . . f f f . . . f f f . . . .
+    . . . f f f . . . f f f . . . .
+    . . . f f f . . . f f f . . . .
+    . . . f f f . . . f f f . . . .
+    . . . f f f . . . f f f . . . .
+    . . . f f f . . . f f f . . . .
+    . . . f f f . . . f f f . . . .
+    . . . . . . . . . . . . . . . .
+    . . . . . . . . . . . . . . . .
+    . . . . . . . . . . . . . . . .
+`, SpriteKind.Hud)
 pauseButton.setPosition(155, 10)
 keymap.setPlayerKeys(1, keymap.KeyCode.UpArrow, keymap.KeyCode.DownArrow, keymap.KeyCode.LeftArrow, keymap.KeyCode.RightArrow, keymap.KeyCode.Space, keymap.KeyCode.None)
 roomTemplates = pregenerateRoomTemplates()
@@ -1153,7 +1387,7 @@ bg = image.create(160, 120)
 bg.fill(1)
 loadRoom(0, 0)
 game.onUpdate(function () {
-    if (debugActivated || minigameActive != "") {
+    if (debugActivated || minigameActive != "" || skillTreeOpen) {
         return
     }
     if (!(console1hidden) && isClose(cyberPacman, console1, 20)) {
@@ -1179,7 +1413,7 @@ game.onUpdate(function () {
             break;
         }
     }
-    if (!(showMinimap)){
+    if (!(showMinimap)) {
         minimapSprite.setFlag(SpriteFlag.Invisible, true)
     }
     else {
