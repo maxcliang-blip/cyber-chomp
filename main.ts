@@ -65,20 +65,25 @@ skillNodeReady.setFlag(SpriteFlag.Invisible, true)
 skillNodeUnlocked.setFlag(SpriteFlag.Invisible, true)
 skillNodeBought.setFlag(SpriteFlag.Invisible, true)
 let skills: SkillNode[] = [
-    { name: "Overclock", desc: "Faster movement", cost: 1, req: -1, x: 40, y: 30, unlocked: false },
-    { name: "Rapid Fire", desc: "Faster laser fire", cost: 2, req: 0, x: 70, y: 30, unlocked: false },
-    { name: "Piercing Laser", desc: "Laser pierces enemies", cost: 3, req: 1, x: 100, y: 30, unlocked: false },
-    { name: "Ghost Step", desc: "Survive one hit", cost: 2, req: 0, x: 10, y: 60, unlocked: false },
-    { name: "Data Leech", desc: "Double XP", cost: 2, req: 0, x: 40, y: 60, unlocked: false },
-    { name: "Firewall Hacker", desc: "Slower sequences", cost: 3, req: 4, x: 70, y: 60, unlocked: false },
-    { name: "Arena Ready", desc: "Boss zone speed/fire", cost: 4, req: 2, x: 100, y: 60, unlocked: false }
+    { name: "Overclock", desc: "Faster movement", cost: 1, req: -1, x: 12, y: 26, unlocked: false },
+    { name: "Rapid Fire", desc: "Faster laser fire", cost: 2, req: 0, x: 48, y: 26, unlocked: false },
+    { name: "Piercing Laser", desc: "Hits up to 3", cost: 3, req: 1, x: 84, y: 26, unlocked: false },
+    { name: "Ghost Step", desc: "Survive one hit", cost: 2, req: 0, x: 12, y: 50, unlocked: false },
+    { name: "Data Leech", desc: "Double XP", cost: 2, req: 0, x: 84, y: 50, unlocked: false },
+    { name: "Firewall Hacker", desc: "Slower sequences", cost: 3, req: 3, x: 12, y: 74, unlocked: false },
+    { name: "Arena Ready", desc: "Boss zone speed/fire", cost: 4, req: 2, x: 120, y: 50, unlocked: false },
+    { name: "Quick Charge", desc: "Even faster laser", cost: 3, req: 2, x: 120, y: 26, unlocked: false },
+    { name: "Backup Shield", desc: "+1 hit saved", cost: 3, req: 3, x: 48, y: 50, unlocked: false },
+    { name: "XP Magnet", desc: "Even more XP", cost: 4, req: 4, x: 84, y: 74, unlocked: false },
+    { name: "Firewall Master", desc: "Much slower nodes", cost: 4, req: 5, x: 48, y: 74, unlocked: false },
+    { name: "Boss Breaker", desc: "Stronger boss boost", cost: 5, req: 6, x: 120, y: 74, unlocked: false }
 ]
-let laserPiercing = false
+let laserPierceCount = 0
 let ghostStepCharges = 0
 let playerGraceUntil = 0
 let xpMultiplier = 1
 let firewallSequenceDelay = 350
-let arenaReady = false
+let arenaBoostLevel = 0
 function renderSkillTree(background:Image){
     let canvas=background.clone()
         canvas.print("SP: " + skillpoints, 4, 4, 15)
@@ -165,7 +170,7 @@ function applySkillEffect(index: number) {
     } else if (index == 1) {
         laser_cooldown = Math.max(60, laser_cooldown - 80)
     } else if (index == 2) {
-        laserPiercing = true
+        laserPierceCount = 2
     } else if (index == 3) {
         ghostStepCharges += 1
     } else if (index == 4) {
@@ -173,18 +178,28 @@ function applySkillEffect(index: number) {
     } else if (index == 5) {
         firewallSequenceDelay += 250
     } else if (index == 6) {
-        arenaReady = true
+        arenaBoostLevel += 1
+    } else if (index == 7) {
+        laser_cooldown = Math.max(60, laser_cooldown - 40)
+    } else if (index == 8) {
+        ghostStepCharges += 1
+    } else if (index == 9) {
+        xpMultiplier += 1
+    } else if (index == 10) {
+        firewallSequenceDelay += 150
+    } else if (index == 11) {
+        arenaBoostLevel += 1
     }
 }
 function currentPlayerSpeed(): number {
-    if (arenaReady && isBossCell(currentRoomRow, currentRoomCol)) {
-        return SPEED + 25
+    if (arenaBoostLevel > 0 && isBossCell(currentRoomRow, currentRoomCol)) {
+        return SPEED + 25 * arenaBoostLevel
     }
     return SPEED
 }
 function currentLaserCooldown(): number {
-    if (arenaReady && isBossCell(currentRoomRow, currentRoomCol)) {
-        return Math.max(50, laser_cooldown - 75)
+    if (arenaBoostLevel > 0 && isBossCell(currentRoomRow, currentRoomCol)) {
+        return Math.max(50, laser_cooldown - 75 * arenaBoostLevel)
     }
     return laser_cooldown
 }
@@ -417,7 +432,7 @@ controller.A.onEvent(ControllerButtonEvent.Pressed, function () {
         . . . . . . . . . . . . . . . .
         . . . . . . . . . . . . . . . .
         `, cyberPacman, facingright ? 200 : -200, 0)
-    projectile.data.piercing = laserPiercing
+    projectile.data.pierceLeft = laserPierceCount
     timesincelaser = game.runtime()
 })
 let timesincelaser = -200
@@ -1010,8 +1025,11 @@ sprites.onOverlap(SpriteKind.Follower, SpriteKind.Projectile, function (enemy7, 
     console.log(xp)
     console.log(xplevel)
     console.log(xptonext)
+    let pierceLeft = laser.data.pierceLeft
     sprites.destroy(enemy7)
-    if (!(laser.data.piercing)) {
+    if (pierceLeft > 0) {
+        laser.data.pierceLeft = pierceLeft - 1
+    } else {
         sprites.destroy(laser)
     }
 })
