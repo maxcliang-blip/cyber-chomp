@@ -459,7 +459,7 @@ function endMinigame(won: boolean) {
     leveltext.setFlag(SpriteFlag.Invisible, false)
     cyberPacman.setFlag(SpriteFlag.Invisible, false)
     applyPlayerSpeed()
-    loadRoom(currentRoomRow, currentRoomCol)
+    loadRoom(currentRoomRow, currentRoomCol, true)
     cyberPacman.setPosition(minigameReturnX, minigameReturnY)
 }
 function getFirewallNodeAt(x: number, y: number) {
@@ -845,7 +845,7 @@ function restoreGameplayState(kind:string) {
     leveltext.setFlag(SpriteFlag.Invisible, false)
     applyPlayerSpeed()
     debugActivated = false
-    loadRoom(currentRoomRow, currentRoomCol)
+    loadRoom(currentRoomRow, currentRoomCol, false)
 }
 function renderDebugMenu() {
     if (coordsText) {
@@ -1187,8 +1187,10 @@ let leveltext = fancyText.create(`Level ${xplevel}`)
 fancyText.setFont(leveltext, fancyText.bold_sans_7)
 fancyText.setColor(leveltext, 15)
 leveltext.setPosition(120, 102)
-function loadRoom(row: number, col: number) {
-    enemyGraceUntil = control.millis() + 1000
+function loadRoom(row: number, col: number, grantGrace: boolean) {
+    if (grantGrace) {
+        enemyGraceUntil = control.millis() + 1000
+    }
     initRoomSpawned()
     sprites.destroyAllSpritesOfKind(SpriteKind.Projectile)
     console1hidden = true
@@ -1441,7 +1443,7 @@ minimapSprite.setPosition(25, 95)
 minimapSprite.z = -1
 bg = image.create(160, 120)
 bg.fill(1)
-loadRoom(0, 0)
+loadRoom(0, 0, true)
 game.onUpdate(function () {
     if (debugActivated || minigameActive != "" || skillTreeOpen) {
         return
@@ -1492,7 +1494,7 @@ game.onUpdate(function () {
         if ((bossEdgeLeft || inDoorY) && (roomBitValue & 8) != 0 && currentRoomCol > 0) {
             currentRoomCol += 0 - 1
             cyberPacman.x = 155
-            loadRoom(currentRoomRow, currentRoomCol)
+            loadRoom(currentRoomRow, currentRoomCol, true)
         } else {
             cyberPacman.x = 0
         }
@@ -1500,7 +1502,7 @@ game.onUpdate(function () {
         if ((bossEdgeRight || inDoorY) && (roomBitValue & 2) != 0 && currentRoomCol < GRID_SIZE - 1) {
             currentRoomCol += 1
             cyberPacman.x = 5
-            loadRoom(currentRoomRow, currentRoomCol)
+            loadRoom(currentRoomRow, currentRoomCol, true)
         } else {
             cyberPacman.x = SCREEN_WIDTH
         }
@@ -1508,7 +1510,7 @@ game.onUpdate(function () {
         if ((bossEdgeUp || inDoorX) && (roomBitValue & 1) != 0 && currentRoomRow > 0) {
             currentRoomRow += 0 - 1
             cyberPacman.y = 115
-            loadRoom(currentRoomRow, currentRoomCol)
+            loadRoom(currentRoomRow, currentRoomCol, true)
         } else {
             cyberPacman.y = 0
         }
@@ -1516,7 +1518,7 @@ game.onUpdate(function () {
         if ((bossEdgeDown || inDoorX) && (roomBitValue & 4) != 0 && currentRoomRow < GRID_SIZE - 1) {
             currentRoomRow += 1
             cyberPacman.y = 5
-            loadRoom(currentRoomRow, currentRoomCol)
+            loadRoom(currentRoomRow, currentRoomCol, true)
         } else {
             cyberPacman.y = SCREEN_HEIGHT
         }
