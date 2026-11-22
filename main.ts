@@ -84,7 +84,7 @@ let laserPierceCount = 0
 let ghostStepCharges = 0
 let playerGraceUntil = 0
 let xpMultiplier = 1
-let firewallSequenceDelay = 350
+let firewallSequenceDelay = 180
 let arenaBoostLevel = 0
 let boss: Sprite = null
 let bossHpText: fancyText.TextSprite = null
@@ -189,7 +189,7 @@ function applySkillEffect(index: number) {
     } else if (index == 4) {
         xpMultiplier += 1
     } else if (index == 5) {
-        firewallSequenceDelay += 250
+        firewallSequenceDelay += 120
     } else if (index == 6) {
         arenaBoostLevel += 1
     } else if (index == 7) {
@@ -199,7 +199,7 @@ function applySkillEffect(index: number) {
     } else if (index == 9) {
         xpMultiplier += 1
     } else if (index == 10) {
-        firewallSequenceDelay += 150
+        firewallSequenceDelay += 80
     } else if (index == 11) {
         arenaBoostLevel += 1
     }
@@ -404,7 +404,7 @@ function playFirewallSequence(withCountdown: boolean) {
                 return
             }
             nodelist[t][e].setImage(blanknode.image)
-            pause(150)
+            pause(90)
         }
         if (minigameActive == "firewall") {
             acceptingFirewallInput = true
