@@ -1,7 +1,10 @@
 # Boss Fight Guide
 
 ## Trigger
-- The boss spawns automatically when the player enters any boss-arena room.
+- The boss requires the Firewall minigame to be completed first.
+- Completing Firewall sets `hasRedKey = true`, which unlocks the boss fight.
+- The boss spawns automatically when the player enters any boss-arena room with the Red Key.
+- Entering the arena without the Red Key shows a one-time `BEAT THE FIREWALL FIRST` message instead.
 - The boss arena is rows `7-9`, columns `7-9`.
 - The arena entrance is `(8, 7)`.
 - The boss only spawns once per run.

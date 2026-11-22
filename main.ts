@@ -93,6 +93,7 @@ let bossDefeated = false
 let bossHP = 0
 let BOSS_MAX_HP = 12
 let bossNextShotAt = 0
+let firewallGateMessageShown = false
 function renderSkillTree(background:Image){
     let canvas=background.clone()
         fancyText.draw("SP: " + skillpoints, canvas, 4, 4, 0, 15, fancyText.bold_sans_7)
@@ -1406,7 +1407,12 @@ function loadRoom(row: number, col: number, grantGrace: boolean) {
     if (isBossCell(row, col)) {
         drawBossBackground(row, col)
         scene.setBackgroundImage(bossBackground)
-        startBossFight()
+        if (hasRedKey == true) {
+            startBossFight()
+        } else if (!firewallGateMessageShown) {
+            firewallGateMessageShown = true
+            game.splash("BEAT THE FIREWALL FIRST")
+        }
     } else {
         scene.setBackgroundImage(roomTemplates[roomBitValue])
         sprites.destroyAllSpritesOfKind(SpriteKind.BossShot)
