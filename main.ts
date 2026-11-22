@@ -86,15 +86,15 @@ let firewallSequenceDelay = 350
 let arenaBoostLevel = 0
 function renderSkillTree(background:Image){
     let canvas=background.clone()
-        canvas.print("SP: " + skillpoints, 4, 4, 15)
+        fancyText.draw("SP: " + skillpoints, canvas, 4, 4, 0, 15, fancyText.bold_sans_7)
         if (hoveredSkillIndex != -1) {
         let s = skills[hoveredSkillIndex]
         let boxHeight = 26
         let boxY = SCREEN_HEIGHT - boxHeight
         canvas.fillRect(0, boxY, SCREEN_WIDTH, boxHeight, 15) // Black box
         canvas.drawRect(0, boxY, SCREEN_WIDTH, boxHeight, 1)  // White border
-        canvas.print(s.name + " (" + s.cost + " SP)", 4, boxY + 3, 1)
-        canvas.print(s.desc, 4, boxY + 14, 5)
+        fancyText.draw(s.name + " (" + s.cost + " SP)", canvas, 4, boxY + 3, SCREEN_WIDTH - 8, 1, fancyText.bold_sans_7)
+        fancyText.draw(s.desc, canvas, 4, boxY + 14, SCREEN_WIDTH - 8, 5, fancyText.bold_sans_7)
     }
 
     for (const skill of skills) {
