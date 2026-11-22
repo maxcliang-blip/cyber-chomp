@@ -69,10 +69,16 @@ let skills: SkillNode[] = [
     { name: "Rapid Fire", desc: "Faster laser fire", cost: 2, req: 0, x: 70, y: 30, unlocked: false },
     { name: "Piercing Laser", desc: "Laser pierces enemies", cost: 3, req: 1, x: 100, y: 30, unlocked: false },
     { name: "Ghost Step", desc: "Survive one hit", cost: 2, req: 0, x: 10, y: 60, unlocked: false },
-    { name: "Data Leech", desc: "Gain more XP", cost: 2, req: 0, x: 40, y: 60, unlocked: false },
-    { name: "Firewall Hacker", desc: "Easier firewalls", cost: 3, req: 4, x: 70, y: 60, unlocked: false },
-    { name: "Arena Ready", desc: "Boss arena boost", cost: 4, req: 2, x: 100, y: 60, unlocked: false }
+    { name: "Data Leech", desc: "Double XP", cost: 2, req: 0, x: 40, y: 60, unlocked: false },
+    { name: "Firewall Hacker", desc: "Slower sequences", cost: 3, req: 4, x: 70, y: 60, unlocked: false },
+    { name: "Arena Ready", desc: "Boss zone speed/fire", cost: 4, req: 2, x: 100, y: 60, unlocked: false }
 ]
+let laserPiercing = false
+let ghostStepCharges = 0
+let playerGraceUntil = 0
+let xpMultiplier = 1
+let firewallSequenceDelay = 350
+let arenaReady = false
 function renderSkillTree(background:Image){
     let canvas=background.clone()
         canvas.print("SP: " + skillpoints, 4, 4, 15)
@@ -153,6 +159,38 @@ function openSkillTree() {
 function closeSkillTree() {
     restoreGameplayState("skilltree")
 }
+function applySkillEffect(index: number) {
+    if (index == 0) {
+        SPEED += 25
+    } else if (index == 1) {
+        laser_cooldown = Math.max(60, laser_cooldown - 80)
+    } else if (index == 2) {
+        laserPiercing = true
+    } else if (index == 3) {
+        ghostStepCharges += 1
+    } else if (index == 4) {
+        xpMultiplier += 1
+    } else if (index == 5) {
+        firewallSequenceDelay += 250
+    } else if (index == 6) {
+        arenaReady = true
+    }
+}
+function currentPlayerSpeed(): number {
+    if (arenaReady && isBossCell(currentRoomRow, currentRoomCol)) {
+        return SPEED + 25
+    }
+    return SPEED
+}
+function currentLaserCooldown(): number {
+    if (arenaReady && isBossCell(currentRoomRow, currentRoomCol)) {
+        return Math.max(50, laser_cooldown - 75)
+    }
+    return laser_cooldown
+}
+function applyPlayerSpeed() {
+    controller.moveSprite(cyberPacman, currentPlayerSpeed(), currentPlayerSpeed())
+}
 let showMinimap = true
 function renderDebugOptions() {
     cleanUIElements(debugOptions)
@@ -205,7 +243,7 @@ function playFirewallSequence(withCountdown: boolean) {
             const t = Math.floor(idx / 3)
             const e = idx % 3
             nodelist[t][e].setImage(sequencenode.image)
-            pause(350)
+            pause(firewallSequenceDelay)
             if (minigameActive != "firewall") {
                 return
             }
@@ -357,7 +395,7 @@ controller.A.onEvent(ControllerButtonEvent.Pressed, function () {
     if (debugActivated || minigameActive != "" || skillTreeOpen) {
         return
     }
-    if (game.runtime() - timesincelaser < laser_cooldown) {
+    if (game.runtime() - timesincelaser < currentLaserCooldown()) {
         return
     }
     
@@ -379,6 +417,7 @@ controller.A.onEvent(ControllerButtonEvent.Pressed, function () {
         . . . . . . . . . . . . . . . .
         . . . . . . . . . . . . . . . .
         `, cyberPacman, facingright ? 200 : -200, 0)
+    projectile.data.piercing = laserPiercing
     timesincelaser = game.runtime()
 })
 let timesincelaser = -200
@@ -419,7 +458,7 @@ function endMinigame(won: boolean) {
     statusbar.setFlag(SpriteFlag.Invisible, false)
     leveltext.setFlag(SpriteFlag.Invisible, false)
     cyberPacman.setFlag(SpriteFlag.Invisible, false)
-    controller.moveSprite(cyberPacman, SPEED, SPEED)
+    applyPlayerSpeed()
     loadRoom(currentRoomRow, currentRoomCol)
     cyberPacman.setPosition(minigameReturnX, minigameReturnY)
 }
@@ -660,7 +699,16 @@ sprites.onOverlap(SpriteKind.Player, SpriteKind.Follower, function (player2, ene
     if (control.millis() < enemyGraceUntil) {
         return
     }
+    if (control.millis() < playerGraceUntil) {
+        return
+    }
     if (gameOverTriggered) {
+        return
+    }
+    if (ghostStepCharges > 0) {
+        ghostStepCharges -= 1
+        playerGraceUntil = control.millis() + 1500
+        sprites.destroy(enemy)
         return
     }
     gameOverTriggered = true
@@ -699,7 +747,8 @@ function handleNavigation(dir: number) {
 browserEvents.MouseLeft.onEvent(browserEvents.MouseButtonEvent.Pressed, function (x, y) {
     if (skillTreeOpen) {
         
-        for (const skill of skills) {
+        for (let i = 0; i < skills.length; i++) {
+            let skill = skills[i]
             if (x >= skill.x && x < skill.x + 9 && y >= skill.y && y < skill.y + 9) {
                 let requirementMet = skill.req == -1 || skills[skill.req].unlocked
 
@@ -707,6 +756,7 @@ browserEvents.MouseLeft.onEvent(browserEvents.MouseButtonEvent.Pressed, function
                     game.splash("Bought " + skill.name)
                     skillpoints -= skill.cost
                     skill.unlocked = true
+                    applySkillEffect(i)
                     renderSkillTree(bg) 
                 }
                 break
@@ -793,7 +843,7 @@ function restoreGameplayState(kind:string) {
     }
     statusbar.setFlag(SpriteFlag.Invisible, false)
     leveltext.setFlag(SpriteFlag.Invisible, false)
-    controller.moveSprite(cyberPacman, SPEED, SPEED)
+    applyPlayerSpeed()
     debugActivated = false
     loadRoom(currentRoomRow, currentRoomCol)
 }
@@ -942,23 +992,28 @@ sprites.onOverlap(SpriteKind.Follower, SpriteKind.Projectile, function (enemy7, 
     if (!enemyInRoom(enemy7, currentRoomRow, currentRoomCol)) {
         return
     }
-    statusbar.value += 10
-    xp += 10
-    xptonext -= 10
-    if (xptonext == 0) {
+    let xpGain = 10 * xpMultiplier
+    statusbar.value += xpGain
+    xp += xpGain
+    xptonext -= xpGain
+    while (xptonext <= 0) {
+        let overflow = -xptonext
         statusbar.value = 0
-
         xplevel += 1
         xptonext = 30 * xplevel
         statusbar.max = 30 * xplevel
         fancyText.setText(leveltext, `Level ${xplevel}`)
         skillpoints++
+        statusbar.value = overflow
+        xptonext -= overflow
     }
     console.log(xp)
     console.log(xplevel)
     console.log(xptonext)
     sprites.destroy(enemy7)
-    sprites.destroy(laser)
+    if (!(laser.data.piercing)) {
+        sprites.destroy(laser)
+    }
 })
 let skillpoints=0
 function handleFirewallInput(nodeIndex: number) {
@@ -1176,6 +1231,7 @@ function loadRoom(row: number, col: number) {
     }
     rebuildEnemyPaths()
     updateEnemies()
+    applyPlayerSpeed()
 }
 function drawDoor(bg: Image, side: number, color: number = 15) {
     for (let n = 0; n <= 20; n++) {
@@ -1337,7 +1393,7 @@ SCREEN_HEIGHT = 120
 let SPEED = 100
 cyberPacman.setScale(0.25, ScaleAnchor.Middle)
 cyberPacman.setPosition(80, 60)
-controller.moveSprite(cyberPacman, SPEED, SPEED)
+applyPlayerSpeed()
 popup1hidden = true
 console1 = sprites.create(img`
     7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 
