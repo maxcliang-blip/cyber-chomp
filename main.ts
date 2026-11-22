@@ -6,6 +6,8 @@ namespace SpriteKind {
     export const minigameSprites = SpriteKind.create()
     export const minigameHud = SpriteKind.create()
     export const SkillNodes=SpriteKind.create()
+    export const Boss=SpriteKind.create()
+    export const BossShot=SpriteKind.create()
 }
 interface SkillNode {
     name: string
@@ -84,6 +86,13 @@ let playerGraceUntil = 0
 let xpMultiplier = 1
 let firewallSequenceDelay = 350
 let arenaBoostLevel = 0
+let boss: Sprite = null
+let bossHpText: fancyText.TextSprite = null
+let bossActive = false
+let bossDefeated = false
+let bossHP = 0
+let BOSS_MAX_HP = 12
+let bossNextShotAt = 0
 function renderSkillTree(background:Image){
     let canvas=background.clone()
         fancyText.draw("SP: " + skillpoints, canvas, 4, 4, 0, 15, fancyText.bold_sans_7)
@@ -127,6 +136,7 @@ let skillTreePlayerY:number
 function openSkillTree() {
     skillTreeOpen = true
     pauseAllEnemies()
+    pauseBoss()
 
     skillTreePlayerX = cyberPacman.x
     skillTreePlayerY = cyberPacman.y
@@ -146,7 +156,9 @@ function openSkillTree() {
         console1,
         statusbar,
         leveltext,
-        pauseButton
+        pauseButton,
+        boss,
+        bossHpText
     ]
 
     for (let s of spritesToHide) {
@@ -205,6 +217,134 @@ function currentLaserCooldown(): number {
 }
 function applyPlayerSpeed() {
     controller.moveSprite(cyberPacman, currentPlayerSpeed(), currentPlayerSpeed())
+}
+function makeBossImage(): Image {
+    let bossImg = image.create(16, 16)
+    bossImg.fillRect(2, 2, 12, 12, 2)
+    bossImg.fillRect(4, 5, 3, 3, 4)
+    bossImg.fillRect(9, 5, 3, 3, 4)
+    bossImg.fillRect(5, 6, 1, 1, 15)
+    bossImg.fillRect(10, 6, 1, 1, 15)
+    bossImg.fillRect(5, 10, 6, 2, 7)
+    bossImg.fillRect(6, 12, 1, 1, 15)
+    bossImg.fillRect(9, 12, 1, 1, 15)
+    return bossImg
+}
+function startBossFight() {
+    if (bossActive || bossDefeated) {
+        return
+    }
+    bossActive = true
+    bossHP = BOSS_MAX_HP
+    sprites.destroyAllSpritesOfKind(SpriteKind.BossShot)
+    boss = sprites.create(makeBossImage(), SpriteKind.Boss)
+    boss.setPosition(80, 85)
+    bossHpText = fancyText.create("BOSS HP: " + bossHP + "/" + BOSS_MAX_HP, 0, 15, fancyText.bold_sans_7)
+    bossHpText.setKind(SpriteKind.Hud)
+    bossHpText.setPosition(80, 8)
+    fancyText.setColor(bossHpText, 15)
+    bossNextShotAt = game.runtime() + 1500
+}
+function pauseBoss() {
+    if (!bossActive || !boss) {
+        return
+    }
+    boss.unfollow()
+    boss.setVelocity(0, 0)
+    boss.setFlag(SpriteFlag.Invisible, true)
+    if (bossHpText) {
+        bossHpText.setFlag(SpriteFlag.Invisible, true)
+    }
+    sprites.destroyAllSpritesOfKind(SpriteKind.BossShot)
+}
+function resumeBoss() {
+    if (!bossActive || !boss) {
+        return
+    }
+    boss.setFlag(SpriteFlag.Invisible, false)
+    if (bossHpText) {
+        bossHpText.setFlag(SpriteFlag.Invisible, false)
+    }
+}
+function damageBoss(amount: number) {
+    if (!bossActive || bossDefeated) {
+        return
+    }
+    bossHP -= amount
+    if (bossHP < 0) {
+        bossHP = 0
+    }
+    if (bossHpText) {
+        fancyText.setText(bossHpText, "BOSS HP: " + bossHP + "/" + BOSS_MAX_HP)
+    }
+    if (bossHP == 0) {
+        defeatBoss()
+    }
+}
+function defeatBoss() {
+    bossActive = false
+    bossDefeated = true
+    sprites.destroyAllSpritesOfKind(SpriteKind.BossShot)
+    if (boss) {
+        sprites.destroy(boss)
+        boss = null
+    }
+    if (bossHpText) {
+        sprites.destroy(bossHpText)
+        bossHpText = null
+    }
+    game.splash("BOSS DEFEATED")
+    game.over(true)
+}
+function updateBoss() {
+    if (!bossActive || !boss || gameOverTriggered) {
+        return
+    }
+    if (debugActivated || minigameActive != "" || skillTreeOpen) {
+        return
+    }
+    boss.follow(cyberPacman, 45 + (BOSS_MAX_HP - bossHP) * 5)
+    if (boss.x < 12) {
+        boss.x = 12
+    }
+    if (boss.x > SCREEN_WIDTH - 12) {
+        boss.x = SCREEN_WIDTH - 12
+    }
+    if (boss.y < 12) {
+        boss.y = 12
+    }
+    if (boss.y > SCREEN_HEIGHT - 12) {
+        boss.y = SCREEN_HEIGHT - 12
+    }
+    if (game.runtime() >= bossNextShotAt) {
+        let shotDX = cyberPacman.x - boss.x
+        let shotDY = cyberPacman.y - boss.y
+        let shotDist = Math.sqrt(shotDX * shotDX + shotDY * shotDY)
+        if (shotDist > 0) {
+            let shot = sprites.createProjectileFromSprite(img`
+                . 4 .
+                4 7 4
+                . 4 .
+                `, boss, shotDX / shotDist * 90, shotDY / shotDist * 90)
+            shot.setKind(SpriteKind.BossShot)
+            bossNextShotAt = game.runtime() + Math.max(650, 1400 - (BOSS_MAX_HP - bossHP) * 80)
+        }
+    }
+}
+function hitPlayer(attacker: Sprite) {
+    if (gameOverTriggered || control.millis() < playerGraceUntil) {
+        return
+    }
+    if (ghostStepCharges > 0) {
+        ghostStepCharges -= 1
+        playerGraceUntil = control.millis() + 1500
+        if (attacker) {
+            sprites.destroy(attacker)
+        }
+        return
+    }
+    gameOverTriggered = true
+    game.over(false)
 }
 let showMinimap = true
 function renderDebugOptions() {
@@ -281,6 +421,7 @@ function startMinigame(kind: string) {
     minigameReturnX = cyberPacman.x
     minigameReturnY = cyberPacman.y
     pauseAllEnemies()
+    pauseBoss()
     controller.moveSprite(cyberPacman, 0, 0)
     minimapSprite.setFlag(SpriteFlag.Invisible, true)
     pauseButton.setFlag(SpriteFlag.Invisible, true)
@@ -289,6 +430,9 @@ function startMinigame(kind: string) {
     }
     if (leveltext) {
         leveltext.setFlag(SpriteFlag.Invisible, true)
+    }
+    if (bossHpText) {
+        bossHpText.setFlag(SpriteFlag.Invisible, true)
     }
     if (coordsText) {
         sprites.destroy(coordsText)
@@ -472,7 +616,11 @@ function endMinigame(won: boolean) {
     pauseButton.setFlag(SpriteFlag.Invisible, false)
     statusbar.setFlag(SpriteFlag.Invisible, false)
     leveltext.setFlag(SpriteFlag.Invisible, false)
+    if (bossHpText) {
+        bossHpText.setFlag(SpriteFlag.Invisible, false)
+    }
     cyberPacman.setFlag(SpriteFlag.Invisible, false)
+    resumeBoss()
     applyPlayerSpeed()
     loadRoom(currentRoomRow, currentRoomCol, true)
     cyberPacman.setPosition(minigameReturnX, minigameReturnY)
@@ -714,20 +862,19 @@ sprites.onOverlap(SpriteKind.Player, SpriteKind.Follower, function (player2, ene
     if (control.millis() < enemyGraceUntil) {
         return
     }
-    if (control.millis() < playerGraceUntil) {
+    hitPlayer(enemy)
+})
+sprites.onOverlap(SpriteKind.Player, SpriteKind.Boss, function (player2, bossSprite) {
+    if (debugActivated || minigameActive != "" || skillTreeOpen) {
         return
     }
-    if (gameOverTriggered) {
+    hitPlayer(null)
+})
+sprites.onOverlap(SpriteKind.Player, SpriteKind.BossShot, function (player2, shot) {
+    if (debugActivated || minigameActive != "" || skillTreeOpen) {
         return
     }
-    if (ghostStepCharges > 0) {
-        ghostStepCharges -= 1
-        playerGraceUntil = control.millis() + 1500
-        sprites.destroy(enemy)
-        return
-    }
-    gameOverTriggered = true
-    game.over(false)
+    hitPlayer(shot)
 })
 browserEvents.Enter.onEvent(browserEvents.KeyEvent.Pressed, function () {
     if (!(debugActivated)) {
@@ -858,6 +1005,10 @@ function restoreGameplayState(kind:string) {
     }
     statusbar.setFlag(SpriteFlag.Invisible, false)
     leveltext.setFlag(SpriteFlag.Invisible, false)
+    if (bossHpText) {
+        bossHpText.setFlag(SpriteFlag.Invisible, false)
+    }
+    resumeBoss()
     applyPlayerSpeed()
     debugActivated = false
     loadRoom(currentRoomRow, currentRoomCol, false)
@@ -876,6 +1027,7 @@ function renderDebugMenu() {
     }
     cyberPacman.setFlag(SpriteFlag.Invisible, true)
     pauseAllEnemies()
+    pauseBoss()
     if (console1) {
         console1.setFlag(SpriteFlag.Invisible, true)
     }
@@ -884,6 +1036,9 @@ function renderDebugMenu() {
     }
     if (leveltext) {
         leveltext.setFlag(SpriteFlag.Invisible, true)
+    }
+    if (bossHpText) {
+        bossHpText.setFlag(SpriteFlag.Invisible, true)
     }
     debugPlayerX = cyberPacman.x
     debugPlayerY = cyberPacman.y
@@ -1000,6 +1155,16 @@ function resetFirewallNodes() {
     }
 }
 
+sprites.onOverlap(SpriteKind.Boss, SpriteKind.Projectile, function (bossSprite, laser) {
+    if (debugActivated || minigameActive != "" || skillTreeOpen) {
+        return
+    }
+    if (!bossActive || bossDefeated) {
+        return
+    }
+    damageBoss(1)
+    sprites.destroy(laser)
+})
 sprites.onOverlap(SpriteKind.Follower, SpriteKind.Projectile, function (enemy7, laser) {
     if (debugActivated || minigameActive != "" || skillTreeOpen) {
         return
@@ -1241,8 +1406,10 @@ function loadRoom(row: number, col: number, grantGrace: boolean) {
     if (isBossCell(row, col)) {
         drawBossBackground(row, col)
         scene.setBackgroundImage(bossBackground)
+        startBossFight()
     } else {
         scene.setBackgroundImage(roomTemplates[roomBitValue])
+        sprites.destroyAllSpritesOfKind(SpriteKind.BossShot)
     }
     let idx = roomIndex(row, col)
     if (!roomSpawned[idx]) {
@@ -1509,7 +1676,7 @@ game.onUpdate(function () {
     bossEdgeUp = isBossCell(currentRoomRow, currentRoomCol) && isBossCell(currentRoomRow - 1, currentRoomCol)
     bossEdgeDown = isBossCell(currentRoomRow, currentRoomCol) && isBossCell(currentRoomRow + 1, currentRoomCol)
     if (cyberPacman.x < 0) {
-        if ((bossEdgeLeft || inDoorY) && (roomBitValue & 8) != 0 && currentRoomCol > 0) {
+        if (!bossActive && (bossEdgeLeft || inDoorY) && (roomBitValue & 8) != 0 && currentRoomCol > 0) {
             currentRoomCol += 0 - 1
             cyberPacman.x = 155
             loadRoom(currentRoomRow, currentRoomCol, true)
@@ -1517,7 +1684,7 @@ game.onUpdate(function () {
             cyberPacman.x = 0
         }
     } else if (cyberPacman.x > SCREEN_WIDTH) {
-        if ((bossEdgeRight || inDoorY) && (roomBitValue & 2) != 0 && currentRoomCol < GRID_SIZE - 1) {
+        if (!bossActive && (bossEdgeRight || inDoorY) && (roomBitValue & 2) != 0 && currentRoomCol < GRID_SIZE - 1) {
             currentRoomCol += 1
             cyberPacman.x = 5
             loadRoom(currentRoomRow, currentRoomCol, true)
@@ -1525,7 +1692,7 @@ game.onUpdate(function () {
             cyberPacman.x = SCREEN_WIDTH
         }
     } else if (cyberPacman.y < 0) {
-        if ((bossEdgeUp || inDoorX) && (roomBitValue & 1) != 0 && currentRoomRow > 0) {
+        if (!bossActive && (bossEdgeUp || inDoorX) && (roomBitValue & 1) != 0 && currentRoomRow > 0) {
             currentRoomRow += 0 - 1
             cyberPacman.y = 115
             loadRoom(currentRoomRow, currentRoomCol, true)
@@ -1533,7 +1700,7 @@ game.onUpdate(function () {
             cyberPacman.y = 0
         }
     } else if (cyberPacman.y > SCREEN_HEIGHT) {
-        if ((bossEdgeDown || inDoorX) && (roomBitValue & 4) != 0 && currentRoomRow < GRID_SIZE - 1) {
+        if (!bossActive && (bossEdgeDown || inDoorX) && (roomBitValue & 4) != 0 && currentRoomRow < GRID_SIZE - 1) {
             currentRoomRow += 1
             cyberPacman.y = 5
             loadRoom(currentRoomRow, currentRoomCol, true)
@@ -1542,4 +1709,5 @@ game.onUpdate(function () {
         }
     }
     updateEnemies()
+    updateBoss()
 })
