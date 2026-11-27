@@ -831,7 +831,6 @@ function moveEnemyTowardPlayerRoom(enemy: Sprite) {
     }
 }
 function updateEnemies() {
-    initRoomSpawned()
     for (let enemy of sprites.allOfKind(SpriteKind.Follower)) {
         if (!enemy || enemy.data.roomRow == null) {
             continue
@@ -849,10 +848,9 @@ function updateEnemies() {
 
 
 function isClose(mySprite: Sprite, mySprite2: Sprite, dist: number) {
-    return distance(mySprite.x, mySprite2.x, mySprite.y, mySprite2.y) < dist
-}
-function distance(x1: number, x2: number, y1: number, y2: number) {
-    return Math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+    let dx = mySprite.x - mySprite2.x
+    let dy = mySprite.y - mySprite2.y
+    return dx * dx + dy * dy < dist * dist
 }
 controller.down.onEvent(ControllerButtonEvent.Pressed, function () {
     handleNavigation(1)
@@ -1195,9 +1193,6 @@ sprites.onOverlap(SpriteKind.Follower, SpriteKind.Projectile, function (enemy7, 
         statusbar.value = overflow
         xptonext -= overflow
     }
-    console.log(xp)
-    console.log(xplevel)
-    console.log(xptonext)
     let pierceLeft = laser.data.pierceLeft
     sprites.destroy(enemy7)
     if (pierceLeft > 0) {
@@ -1280,12 +1275,9 @@ let bossEdgeRight = false
 let bossEdgeLeft = false
 let inDoorX = false
 let inDoorY = false
-let lastY = 0
 statusbar.value = 0
 statusbar.setStatusBarFlag(StatusBarFlag.None, false)
 statusbar.max = 30
-let lastX = 0
-let hittingWall = false
 let failText: fancyText.TextSprite = null
 let clearText: fancyText.TextSprite = null
 let g = 0
@@ -1723,25 +1715,11 @@ game.onUpdate(function () {
         cyberPacman.image.flipX()
         facingright = true
     }
-    hittingWall = false
-    for (let wall of sprites.allOfKind(SpriteKind.Wall)) {
-        if (cyberPacman.overlapsWith(wall)) {
-            hittingWall = true
-            break;
-        }
-    }
     if (!(showMinimap)) {
         minimapSprite.setFlag(SpriteFlag.Invisible, true)
     }
     else {
         minimapSprite.setFlag(SpriteFlag.Invisible, false)
-    }
-    if (!(hittingWall)) {
-        lastX = cyberPacman.x
-        lastY = cyberPacman.y
-    } else {
-        cyberPacman.x = lastX
-        cyberPacman.y = lastY
     }
     inDoorY = cyberPacman.y >= 52 && cyberPacman.y <= 68
     inDoorX = cyberPacman.x >= 72 && cyberPacman.x <= 88
