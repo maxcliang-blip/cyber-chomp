@@ -4,7 +4,8 @@
     "dependencies": {
         "device": "*",
         "browser-events": "*",
-        "arcade-fancy-text": "github:riknoll/arcade-fancy-text#v0.2.2"
+        "arcade-fancy-text": "github:riknoll/arcade-fancy-text#v0.2.2",
+        "pxt-status-bar": "github:jwunderl/pxt-status-bar#v0.4.2"
     },
     "files": [
         "main.ts",
