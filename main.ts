@@ -1,5 +1,4 @@
 namespace SpriteKind {
-    export const Wall = SpriteKind.create()
     export const Follower = SpriteKind.create()
     export const Hud = SpriteKind.create()
     export const popuptext = SpriteKind.create()
@@ -66,6 +65,64 @@ skillNodeUnavailable.setFlag(SpriteFlag.Invisible, true)
 skillNodeReady.setFlag(SpriteFlag.Invisible, true)
 skillNodeUnlocked.setFlag(SpriteFlag.Invisible, true)
 skillNodeBought.setFlag(SpriteFlag.Invisible, true)
+function setVisible(list: Sprite[], visible: boolean) {
+    for (let s of list) {
+        if (s) {
+            s.setFlag(SpriteFlag.Invisible, !visible)
+        }
+    }
+}
+function makeHudText(text: string, x: number, y: number, color: number, kind: number): fancyText.TextSprite {
+    let t = fancyText.create(text, 0, color, fancyText.bold_sans_7)
+    t.setKind(kind)
+    t.setPosition(x, y)
+    return t
+}
+function firewallNodeImage(color: number): Image {
+    let node = image.create(7, 7)
+    node.drawLine(1, 0, 5, 0, 15)
+    node.drawLine(1, 6, 5, 6, 15)
+    node.drawLine(0, 1, 0, 5, 15)
+    node.drawLine(6, 1, 6, 5, 15)
+    node.fillRect(1, 1, 5, 5, color)
+    return node
+}
+let pauseIcon = img`
+    . . . . . . . . . . . . . . . . 
+    . . . . . . . . . . . . . . . . 
+    . . . f f f . . . f f f . . . . 
+    . . . f f f . . . f f f . . . . 
+    . . . f f f . . . f f f . . . . 
+    . . . f f f . . . f f f . . . . 
+    . . . f f f . . . f f f . . . . 
+    . . . f f f . . . f f f . . . . 
+    . . . f f f . . . f f f . . . . 
+    . . . f f f . . . f f f . . . . 
+    . . . f f f . . . f f f . . . . 
+    . . . f f f . . . f f f . . . . 
+    . . . f f f . . . f f f . . . . 
+    . . . . . . . . . . . . . . . . 
+    . . . . . . . . . . . . . . . . 
+    . . . . . . . . . . . . . . . . 
+    `
+let debugIcon = img`
+    . . . . . . . . . . . . . . . . 
+    . . . . . . . . . . . . . . . . 
+    . . . f . . . . . . . . . . . . 
+    . . . f f f . . . . . . . . . . 
+    . . . f f f f f . . . . . . . . 
+    . . . f f f f f f f . . . . . . 
+    . . . f f f f f f f f . . . . . 
+    . . . f f f f f f f f f . . . . 
+    . . . f f f f f f f f . . . . . 
+    . . . f f f f f f . . . . . . . 
+    . . . f f f f . . . . . . . . . 
+    . . . f f f . . . . . . . . . . 
+    . . . f . . . . . . . . . . . . 
+    . . . . . . . . . . . . . . . . 
+    . . . . . . . . . . . . . . . . 
+    . . . . . . . . . . . . . . . . 
+    `
 let skills: SkillNode[] = [
     { name: "Overclock", desc: "Faster movement", cost: 1, req: -1, x: 12, y: 26, unlocked: false },
     { name: "Rapid Fire", desc: "Faster laser fire", cost: 2, req: 0, x: 48, y: 26, unlocked: false },
@@ -150,22 +207,7 @@ function openSkillTree() {
         popup1.setFlag(SpriteFlag.Invisible, true)
         popup1hidden = true
     }
-    const spritesToHide = [
-        cyberPacman,
-        minimapSprite,
-        console1,
-        statusbar,
-        leveltext,
-        pauseButton,
-        boss,
-        bossHpText
-    ]
-
-    for (let s of spritesToHide) {
-        if (s) {
-            s.setFlag(SpriteFlag.Invisible, true)
-        }
-    }
+    setVisible([cyberPacman, minimapSprite, console1, statusbar, leveltext, pauseButton, boss, bossHpText], false)
 
     bg = image.create(SCREEN_WIDTH, SCREEN_HEIGHT)
     bg.fill(1)
@@ -239,10 +281,7 @@ function startBossFight() {
     sprites.destroyAllSpritesOfKind(SpriteKind.BossShot)
     boss = sprites.create(makeBossImage(), SpriteKind.Boss)
     boss.setPosition(80, 85)
-    bossHpText = fancyText.create("BOSS HP: " + bossHP + "/" + BOSS_MAX_HP, 0, 15, fancyText.bold_sans_7)
-    bossHpText.setKind(SpriteKind.Hud)
-    bossHpText.setPosition(80, 8)
-    fancyText.setColor(bossHpText, 15)
+    bossHpText = makeHudText("BOSS HP: " + bossHP + "/" + BOSS_MAX_HP, 80, 8, 15, SpriteKind.Hud)
     bossNextShotAt = game.runtime() + 1500
 }
 function pauseBoss() {
@@ -364,9 +403,7 @@ function playFirewallSequence(withCountdown: boolean) {
     sequence2 = currentFirewallSequence()
     control.runInBackground(function () {
         if (withCountdown) {
-            const countdown = fancyText.create("Starting in: 3", 0, 15, fancyText.bold_sans_7)
-            countdown.setKind(SpriteKind.minigameHud)
-            countdown.setPosition(80, 10)
+            const countdown = makeHudText("Starting in: 3", 80, 10, 15, SpriteKind.minigameHud)
             for (let count2 = 3; count2 >= 1; count2--) {
                 if (minigameActive != "firewall") {
                     return
@@ -381,9 +418,7 @@ function playFirewallSequence(withCountdown: boolean) {
             pause(400)
             sprites.destroy(countdown)
         } else {
-            const roundText = fancyText.create(`ROUND ${firewallRound}`, 0, 15, fancyText.bold_sans_7)
-            roundText.setKind(SpriteKind.minigameHud)
-            roundText.setPosition(80, 10)
+            const roundText = makeHudText(`ROUND ${firewallRound}`, 80, 10, 15, SpriteKind.minigameHud)
             pause(800)
             if (minigameActive != "firewall") {
                 return
@@ -423,17 +458,7 @@ function startMinigame(kind: string) {
     pauseAllEnemies()
     pauseBoss()
     controller.moveSprite(cyberPacman, 0, 0)
-    minimapSprite.setFlag(SpriteFlag.Invisible, true)
-    pauseButton.setFlag(SpriteFlag.Invisible, true)
-    if (statusbar) {
-        statusbar.setFlag(SpriteFlag.Invisible, true)
-    }
-    if (leveltext) {
-        leveltext.setFlag(SpriteFlag.Invisible, true)
-    }
-    if (bossHpText) {
-        bossHpText.setFlag(SpriteFlag.Invisible, true)
-    }
+    setVisible([minimapSprite, pauseButton, statusbar, leveltext, bossHpText], false)
     if (coordsText) {
         sprites.destroy(coordsText)
         coordsText = null
@@ -460,11 +485,6 @@ function pregenerateRoomTemplates() {
         templates.push(baseImg)
     }
     return templates
-}
-function clearEnemies() {
-    sprites.destroyAllSpritesOfKind(SpriteKind.Follower)
-    roomSpawned = []
-    nextRoomIndex = []
 }
 function pauseAllEnemies() {
     for (let enemy of sprites.allOfKind(SpriteKind.Follower)) {
@@ -494,46 +514,11 @@ function startFirewall() {
     popup1.setFlag(SpriteFlag.Invisible, true)
     console1hidden = true
     popup1hidden = true
-    blanknode = sprites.create(img`
-        . f f f f f . 
-        f 1 1 1 1 1 f 
-        f 1 1 1 1 1 f 
-        f 1 1 1 1 1 f 
-        f 1 1 1 1 1 f 
-        f 1 1 1 1 1 f 
-        . f f f f f . 
-        `, SpriteKind.minigameHud)
-    sequencenode = sprites.create(img`
-        . f f f f f . 
-        f 8 8 8 8 8 f 
-        f 8 8 8 8 8 f 
-        f 8 8 8 8 8 f 
-        f 8 8 8 8 8 f 
-        f 8 8 8 8 8 f 
-        . f f f f f . 
-        `, SpriteKind.minigameHud)
-    correctnode = sprites.create(img`
-        . f f f f f . 
-        f 7 7 7 7 7 f 
-        f 7 7 7 7 7 f 
-        f 7 7 7 7 7 f 
-        f 7 7 7 7 7 f 
-        f 7 7 7 7 7 f 
-        . f f f f f . 
-        `, SpriteKind.minigameHud)
-    wrongnode = sprites.create(img`
-        . f f f f f . 
-        f 2 2 2 2 2 f 
-        f 2 2 2 2 2 f 
-        f 2 2 2 2 2 f 
-        f 2 2 2 2 2 f 
-        f 2 2 2 2 2 f 
-        . f f f f f . 
-        `, SpriteKind.minigameHud)
-    sequencenode.setFlag(SpriteFlag.Invisible, true)
-    blanknode.setFlag(SpriteFlag.Invisible, true)
-    correctnode.setFlag(SpriteFlag.Invisible, true)
-    wrongnode.setFlag(SpriteFlag.Invisible, true)
+    blanknode = sprites.create(firewallNodeImage(1), SpriteKind.minigameHud)
+    sequencenode = sprites.create(firewallNodeImage(8), SpriteKind.minigameHud)
+    correctnode = sprites.create(firewallNodeImage(7), SpriteKind.minigameHud)
+    wrongnode = sprites.create(firewallNodeImage(2), SpriteKind.minigameHud)
+    setVisible([sequencenode, blanknode, correctnode, wrongnode], false)
     nodelist = []
     for (let row = 0; row <= 2; row++) {
         let rowList: Sprite[] = []
@@ -609,17 +594,7 @@ function endMinigame(won: boolean) {
     clearMinigameHud()
     acceptingFirewallInput = false
     minigameActive = ""
-    if (won) {
-
-    }
-    minimapSprite.setFlag(SpriteFlag.Invisible, false)
-    pauseButton.setFlag(SpriteFlag.Invisible, false)
-    statusbar.setFlag(SpriteFlag.Invisible, false)
-    leveltext.setFlag(SpriteFlag.Invisible, false)
-    if (bossHpText) {
-        bossHpText.setFlag(SpriteFlag.Invisible, false)
-    }
-    cyberPacman.setFlag(SpriteFlag.Invisible, false)
+    setVisible([minimapSprite, pauseButton, statusbar, leveltext, bossHpText, cyberPacman], true)
     resumeBoss()
     applyPlayerSpeed()
     loadRoom(currentRoomRow, currentRoomCol, true)
@@ -976,40 +951,13 @@ function restoreGameplayState(kind:string) {
         mapExitPrompt = null
     }
     cleanUIElements(debugOptions)
-    if (minimapSprite) {
-        minimapSprite.setFlag(SpriteFlag.Invisible, false)
-    }
-    pauseButton.setImage(img`
-        . . . . . . . . . . . . . . . . 
-        . . . . . . . . . . . . . . . . 
-        . . . f f f . . . f f f . . . . 
-        . . . f f f . . . f f f . . . . 
-        . . . f f f . . . f f f . . . . 
-        . . . f f f . . . f f f . . . . 
-        . . . f f f . . . f f f . . . . 
-        . . . f f f . . . f f f . . . . 
-        . . . f f f . . . f f f . . . . 
-        . . . f f f . . . f f f . . . . 
-        . . . f f f . . . f f f . . . . 
-        . . . f f f . . . f f f . . . . 
-        . . . f f f . . . f f f . . . . 
-        . . . . . . . . . . . . . . . . 
-        . . . . . . . . . . . . . . . . 
-        . . . . . . . . . . . . . . . . 
-        `)
-    cyberPacman.setFlag(SpriteFlag.Invisible, false)
-    if (kind=="debug"){
-    cyberPacman.setPosition(debugPlayerX, debugPlayerY)
-    }
-    else if (kind=="skilltree"){
-            cyberPacman.setPosition(skillTreePlayerX, skillTreePlayerY)
-            pauseButton.setFlag(SpriteFlag.Invisible, false)
-            skillTreeOpen=false
-    }
-    statusbar.setFlag(SpriteFlag.Invisible, false)
-    leveltext.setFlag(SpriteFlag.Invisible, false)
-    if (bossHpText) {
-        bossHpText.setFlag(SpriteFlag.Invisible, false)
+    setVisible([minimapSprite, pauseButton, cyberPacman, statusbar, leveltext, bossHpText], true)
+    pauseButton.setImage(pauseIcon)
+    if (kind == "debug") {
+        cyberPacman.setPosition(debugPlayerX, debugPlayerY)
+    } else if (kind == "skilltree") {
+        cyberPacman.setPosition(skillTreePlayerX, skillTreePlayerY)
+        skillTreeOpen = false
     }
     resumeBoss()
     applyPlayerSpeed()
@@ -1025,45 +973,13 @@ function renderDebugMenu() {
         popup1.setFlag(SpriteFlag.Invisible, true)
         popup1hidden = true
     }
-    if (minimapSprite) {
-        minimapSprite.setFlag(SpriteFlag.Invisible, true)
-    }
-    cyberPacman.setFlag(SpriteFlag.Invisible, true)
+    setVisible([minimapSprite, cyberPacman, console1, statusbar, leveltext, bossHpText], false)
     pauseAllEnemies()
     pauseBoss()
-    if (console1) {
-        console1.setFlag(SpriteFlag.Invisible, true)
-    }
-    if (statusbar) {
-        statusbar.setFlag(SpriteFlag.Invisible, true)
-    }
-    if (leveltext) {
-        leveltext.setFlag(SpriteFlag.Invisible, true)
-    }
-    if (bossHpText) {
-        bossHpText.setFlag(SpriteFlag.Invisible, true)
-    }
     debugPlayerX = cyberPacman.x
     debugPlayerY = cyberPacman.y
     controller.moveSprite(cyberPacman, 0, 0)
-    pauseButton.setImage(img`
-        . . . . . . . . . . . . . . . . 
-        . . . . . . . . . . . . . . . . 
-        . . . f . . . . . . . . . . . . 
-        . . . f f f . . . . . . . . . . 
-        . . . f f f f f . . . . . . . . 
-        . . . f f f f f f f . . . . . . 
-        . . . f f f f f f f f . . . . . 
-        . . . f f f f f f f f f . . . . 
-        . . . f f f f f f f f . . . . . 
-        . . . f f f f f f . . . . . . . 
-        . . . f f f f . . . . . . . . . 
-        . . . f f f . . . . . . . . . . 
-        . . . f . . . . . . . . . . . . 
-        . . . . . . . . . . . . . . . . 
-        . . . . . . . . . . . . . . . . 
-        . . . . . . . . . . . . . . . . 
-        `)
+    pauseButton.setImage(debugIcon)
     bg = image.create(SCREEN_WIDTH, SCREEN_HEIGHT)
     bg.fill(1)
     scene.setBackgroundImage(bg)
@@ -1216,9 +1132,7 @@ function handleFirewallInput(nodeIndex: number) {
         if (firewallInputIndex >= sequence3.length) {
             acceptingFirewallInput = false
             if (firewallRound >= 3) {
-                clearText = fancyText.create("FIREWALL BREACHED", 0, 7, fancyText.bold_sans_7)
-                clearText.setKind(SpriteKind.minigameHud)
-                clearText.setPosition(80, 10)
+                makeHudText("FIREWALL BREACHED", 80, 10, 7, SpriteKind.minigameHud)
                 control.runInBackground(function () {
                     pause(900)
                     if (minigameActive == "firewall") {
@@ -1233,9 +1147,7 @@ function handleFirewallInput(nodeIndex: number) {
                     }
                 })
             } else {
-                clearText2 = fancyText.create(`ROUND ${firewallRound} CLEAR`, 0, 7, fancyText.bold_sans_7)
-                clearText2.setKind(SpriteKind.minigameHud)
-                clearText2.setPosition(80, 10)
+                clearText2 = makeHudText(`ROUND ${firewallRound} CLEAR`, 80, 10, 7, SpriteKind.minigameHud)
                 control.runInBackground(function () {
                     pause(900)
                     if (minigameActive == "firewall") {
@@ -1256,9 +1168,7 @@ function handleFirewallInput(nodeIndex: number) {
     } else {
         acceptingFirewallInput = false
         node.setImage(wrongnode.image)
-        failText = fancyText.create("SEQUENCE FAILED", 0, 2, fancyText.bold_sans_7)
-        failText.setKind(SpriteKind.minigameHud)
-        failText.setPosition(80, 10)
+        makeHudText("SEQUENCE FAILED", 80, 10, 2, SpriteKind.minigameHud)
         control.runInBackground(function () {
             pause(900)
             if (minigameActive == "firewall") {
@@ -1278,8 +1188,6 @@ let inDoorY = false
 statusbar.value = 0
 statusbar.setStatusBarFlag(StatusBarFlag.None, false)
 statusbar.max = 30
-let failText: fancyText.TextSprite = null
-let clearText: fancyText.TextSprite = null
 let g = 0
 let v = 0
 let sequence3: number[] = []
@@ -1289,10 +1197,6 @@ let debugPlayerY = 0
 let debugPlayerX = 0
 let nodeIndex = 0
 let gameOverTriggered = false
-let point: number[] = []
-let start = 0
-let count = 0
-let spawnPoints: number[][] = []
 let mm: Image = null
 let size = 0
 let cv: Image = null
@@ -1338,9 +1242,6 @@ let sequencenode: Sprite = null
 let nodelist: Sprite[][] = []
 let acceptingFirewallInput = false
 let hasRedKey = false
-let hasBlueKey = false
-let hasArenakey = false
-let tempcount = 0
 let showCoordinates = false
 let currentRoomRow = 0
 let currentRoomCol = 0
@@ -1382,9 +1283,6 @@ function loadRoom(row: number, col: number, grantGrace: boolean) {
     if (console1) {
         console1.setFlag(SpriteFlag.Invisible, true)
     }
-    for (let w of sprites.allOfKind(SpriteKind.Wall)) {
-        w.destroy()
-    }
     if (coordsText) {
         sprites.destroy(coordsText)
         coordsText = null
@@ -1408,9 +1306,7 @@ function loadRoom(row: number, col: number, grantGrace: boolean) {
     if (isBossCell(row, col)) {
         drawBossBackground(row, col)
         scene.setBackgroundImage(bossBackground)
-        if (hasRedKey == true) {
-            startBossFight()
-        }
+        startBossFight()
     } else {
         scene.setBackgroundImage(roomTemplates[roomBitValue])
         sprites.destroyAllSpritesOfKind(SpriteKind.BossShot)
@@ -1648,24 +1544,8 @@ cyberPacman.setScale(0.25, ScaleAnchor.Middle)
 cyberPacman.setPosition(80, 60)
 applyPlayerSpeed()
 popup1hidden = true
-console1 = sprites.create(img`
-    7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 
-    7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 
-    7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 
-    7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 
-    7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 
-    7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 
-    7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 
-    7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 
-    7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 
-    7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 
-    7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 
-    7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 
-    7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 
-    7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 
-    7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 
-    7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 
-    `, SpriteKind.Hud)
+console1 = sprites.create(image.create(16, 16), SpriteKind.Hud)
+console1.image.fill(7)
 console1.setFlag(SpriteFlag.Invisible, true)
 console1hidden = true
 pauseButton = sprites.create(img`
